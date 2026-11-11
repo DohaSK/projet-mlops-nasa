@@ -1,0 +1,38 @@
+# params.yaml
+data:
+  train_path: data/raw/train_FD001.txt
+  test_path: data/raw/test_FD001.txt
+  rul_path: data/raw/RUL_FD001.txt
+  rul_cap: 125          # plafond de RUL (pratique courante sur CMAPSS)
+  test_size: 0.2        # part des moteurs reservee a la validation
+model:
+  n_estimators: 100
+  max_depth: 15
+  min_samples_leaf: 5
+  random_state: 42
+  n_jobs: -1
+quality_gate:
+  min_r2: 0.5
+  max_rmse: 30.0
+training:
+  experiment_name: maintenance-predictive-hybride
+  mlruns_dir: mlruns
+  model_path: models/model.joblib
+  metrics_path: metrics.json
+rag:
+  pdf_path: docs/nasa_cmapss_paper.pdf
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  chunk_size: 150       # en mots
+  chunk_overlap: 30     # en mots
+  top_k: 4
+  index_path: models/rag/faiss_index.bin
+  chunks_path: models/rag/chunks.json
+  # Question en anglais : all-MiniLM-L6-v2 est un modele anglophone et le papier est en anglais
+  question_critique: "Which sensors and physical engine modules (HPC, HPT) are most affected by advanced degradation in the C-MAPSS model?"
+generation:
+  mode: template        # template ou flan_t5
+  nb_phrases: 4
+  flan_t5_model: google/flan-t5-small
+api:
+  seuil_critique: 50
+  seuil_attention: 100

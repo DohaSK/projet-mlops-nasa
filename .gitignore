@@ -1,0 +1,16 @@
+# .gitignore
+venv/
+.venv/
+__pycache__/
+*.pyc
+mlruns/
+.dvc/cache
+.pytest_cache/
+.ruff_cache/
+data/raw/*_FD002.txt
+data/raw/*_FD003.txt
+data/raw/*_FD004.txt
+data/raw/readme.txtdata/raw/*_FD002.txt
+data/raw/*_FD003.txt
+data/raw/*_FD004.txt
+data/raw/readme.txt

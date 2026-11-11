@@ -1,0 +1,35 @@
+# dvc.yaml
+stages:
+  ingestion_rag:
+    cmd: python -m src.rag.ingestion
+    deps:
+      - docs/nasa_cmapss_paper.pdf
+      - src/rag/ingestion.py
+      - src/rag/retrieval.py
+      - src/config.py
+    params:
+      - rag
+    outs:
+      - models/rag
+
+  train:
+    cmd: python -m src.ml.train
+    deps:
+      - data/raw/train_FD001.txt
+      - data/raw/test_FD001.txt
+      - data/raw/RUL_FD001.txt
+      - models/rag
+      - src/ml
+      - src/rag/retrieval.py
+      - params.yaml
+    params:
+      - data
+      - model
+      - quality_gate
+      - training
+      - rag
+    outs:
+      - models/model.joblib
+    metrics:
+      - metrics.json:
+          cache: false
