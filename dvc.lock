@@ -9,16 +9,16 @@ stages:
       size: 434158
     - path: src/config.py
       hash: md5
-      md5: b59fdef4ade79d074d03dd0ae4dfcc54
-      size: 567
+      md5: 5949c2e60e5f4375f152f280186edea9
+      size: 548
     - path: src/rag/ingestion.py
       hash: md5
-      md5: 47fa4b2afe2ada75b39713efc01eed59
-      size: 5164
+      md5: 18a99b7a9f54ce1fa0616ea5e108e31d
+      size: 5019
     - path: src/rag/retrieval.py
       hash: md5
-      md5: 1ce278c31cea29a07c5c76d5f8cd157a
-      size: 1472
+      md5: 9a71447c7d9f5eddc34b7fc323973d1c
+      size: 1428
     params:
       params.yaml:
         rag:
@@ -34,7 +34,7 @@ stages:
     outs:
     - path: models/rag
       hash: md5
-      md5: 91f078afa681eda990fa2ad13542a01e.dir
+      md5: c02a27a2330ae3f6b71881ebfaed9aca.dir
       size: 132797
       nfiles: 3
   train:
@@ -54,24 +54,41 @@ stages:
       size: 3515356
     - path: models/rag
       hash: md5
-      md5: 91f078afa681eda990fa2ad13542a01e.dir
+      md5: c02a27a2330ae3f6b71881ebfaed9aca.dir
       size: 132797
       nfiles: 3
-    - path: params.yaml
+    - path: src/ml/data.py
       hash: md5
-      md5: ffdcbe450715616a568d019e682627bf
-      size: 1250
-    - path: src/ml
+      md5: 530202f66ade1f9ad66ad2c3106757c7
+      size: 3912
+    - path: src/ml/model.py
       hash: md5
-      md5: 5fb1746979d2729b2663a5a4a50f7f31.dir
-      size: 24249
-      nfiles: 8
+      md5: b4cea7e434c8155c46a7697f9ad90890
+      size: 4533
+    - path: src/ml/train.py
+      hash: md5
+      md5: ead499f5c869458db42025dcec567bdc
+      size: 8901
     - path: src/rag/retrieval.py
       hash: md5
-      md5: 1ce278c31cea29a07c5c76d5f8cd157a
-      size: 1472
+      md5: 9a71447c7d9f5eddc34b7fc323973d1c
+      size: 1428
     params:
       params.yaml:
+        api.seuil_critique: 50
+        comparaison:
+          baseline: ridge
+          candidats:
+          - ridge
+          - random_forest
+          - hist_gradient_boosting
+          ridge:
+            alpha: 1.0
+          hist_gradient_boosting:
+            max_iter: 300
+            learning_rate: 0.05
+            max_depth: 6
+            random_state: 42
         data:
           train_path: data/raw/train_FD001.txt
           test_path: data/raw/test_FD001.txt
@@ -85,8 +102,10 @@ stages:
           random_state: 42
           n_jobs: -1
         quality_gate:
-          min_r2: 0.5
-          max_rmse: 30.0
+          min_r2: 0.7
+          max_rmse: 25.0
+          max_taux_alertes_manquees: 0.25
+          exiger_mieux_que_baseline: true
         rag:
           pdf_path: docs/nasa_cmapss_paper.pdf
           embedding_model: sentence-transformers/all-MiniLM-L6-v2
@@ -97,17 +116,118 @@ stages:
           chunks_path: models/rag/chunks.json
           question_critique: Which sensors and physical engine modules (HPC, 
             HPT) are most affected by advanced degradation in the C-MAPSS model?
+        registry:
+          nom_modele: rul-fd001
+          alias_candidat: candidat
+          alias_champion: champion
         training:
           experiment_name: maintenance-predictive-hybride
           mlruns_dir: mlruns
           model_path: models/model.joblib
           metrics_path: metrics.json
+          comparaison_path: reports/comparaison_modeles.json
     outs:
     - path: metrics.json
       hash: md5
-      md5: 53f02297ca3a51516468b4b0ba72b315
-      size: 271
+      md5: 8d92b047248883840c22fca9bef28246
+      size: 494
     - path: models/model.joblib
       hash: md5
-      md5: 102414174d90ed64677d1e05622b9907
-      size: 16802583
+      md5: 4dd8868683088e5647d38da7fbde6459
+      size: 540062
+    - path: reports/comparaison_modeles.json
+      hash: md5
+      md5: a9c0f01dcfc4fb15394e28a57f25aba8
+      size: 1405
+  analyse_erreurs:
+    cmd: python -m src.ml.analyse_erreurs
+    deps:
+    - path: models/model.joblib
+      hash: md5
+      md5: 4dd8868683088e5647d38da7fbde6459
+      size: 540062
+    - path: reports/comparaison_modeles.json
+      hash: md5
+      md5: a9c0f01dcfc4fb15394e28a57f25aba8
+      size: 1405
+    - path: src/ml/analyse_erreurs.py
+      hash: md5
+      md5: 8ee2fbe28c94868bcfb5f8e86552d76a
+      size: 7508
+    params:
+      params.yaml:
+        api:
+          seuil_critique: 50
+          seuil_attention: 100
+    outs:
+    - path: reports/analyse_erreurs.json
+      hash: md5
+      md5: 34849e868fa0677f591a9d34a4ee2f4f
+      size: 3370
+    - path: reports/fig_predit_vs_reel.png
+      hash: md5
+      md5: 06fdcb7437b27eb2a45474f75c79befb
+      size: 65042
+    - path: reports/fig_rmse_par_tranche.png
+      hash: md5
+      md5: b033eaff759697120337392804fc9cc6
+      size: 33937
+  eval_assistant:
+    cmd: python -m src.assistant.evaluation
+    deps:
+    - path: data/eval/questions_assistant.yaml
+      hash: md5
+      md5: 05826e99fbe8e83bd94a2f52b10920ad
+      size: 1741
+    - path: data/raw/RUL_FD001.txt
+      hash: md5
+      md5: 8f4a8b3d2692b2f7d8e72b344927bf4b
+      size: 429
+    - path: data/raw/test_FD001.txt
+      hash: md5
+      md5: 62316d1dd70f88a9a43a1e2690765437
+      size: 2228855
+    - path: models/model.joblib
+      hash: md5
+      md5: 4dd8868683088e5647d38da7fbde6459
+      size: 540062
+    - path: models/rag
+      hash: md5
+      md5: c02a27a2330ae3f6b71881ebfaed9aca.dir
+      size: 132797
+      nfiles: 3
+    - path: src/assistant
+      hash: md5
+      md5: 88871d791f024469bf67eb0350f3ea4a.dir
+      size: 61415
+      nfiles: 14
+    params:
+      params.yaml:
+        api:
+          seuil_critique: 50
+          seuil_attention: 100
+        assistant:
+          modele: openai/gpt-oss-20b
+          temperature: 0.0
+          max_tokens: 900
+          reasoning_effort: low
+          timeout_s: 30
+          top_k: 4
+          nb_capteurs_anormaux: 3
+          longueur_max_question: 500
+          prix_entree_usd_1m: 0.075
+          prix_sortie_usd_1m: 0.3
+          limite_tokens_par_minute: 7000
+          tokens_estimes_par_question: 2000
+          questions_eval_path: data/eval/questions_assistant.yaml
+          metrics_path: assistant_metrics.json
+          quality_gate:
+            min_taux_refus_hors_perimetre: 1.0
+            min_taux_reponse_dans_perimetre: 0.9
+            min_taux_citation: 0.8
+            max_latence_p95_ms: 8000
+    outs:
+    - path: assistant_metrics.json
+      hash: md5
+      md5: 6f3134fa04ccb09d718a87f82b24b1c7
+      size: 350

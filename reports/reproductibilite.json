@@ -1,0 +1,59 @@
+{
+  "python": "3.12.10",
+  "systeme": "Windows-11-10.0.26300-SP0",
+  "paquets": {
+    "numpy": "1.26.4",
+    "pandas": "2.2.3",
+    "scikit-learn": "1.5.2",
+    "mlflow": "2.17.2",
+    "fastapi": "0.115.4",
+    "uvicorn": "0.32.0",
+    "pypdf": "5.1.0",
+    "sentence-transformers": "3.3.1",
+    "faiss-cpu": "1.9.0.post1",
+    "dvc": "3.56.0",
+    "groq": "1.7.0",
+    "pytest": "8.3.3",
+    "ruff": "0.7.4"
+  },
+  "git_commit": null,
+  "git_modifications_non_commitees": true,
+  "donnees_dvc": {
+    "data/raw/train_FD001.txt": {
+      "md5": "259f340bac32ce6fa8894815600fa757",
+      "taille": 3515356
+    },
+    "data/raw/test_FD001.txt": {
+      "md5": "62316d1dd70f88a9a43a1e2690765437",
+      "taille": 2228855
+    },
+    "data/raw/RUL_FD001.txt": {
+      "md5": "8f4a8b3d2692b2f7d8e72b344927bf4b",
+      "taille": 429
+    }
+  },
+  "params_yaml_sha256": "de122400ffe92a9d682fba9816c5cbd43ef0ad7e8aaeaed2e65439d89bee1173",
+  "mlflow": {
+    "experience": "maintenance-predictive-hybride",
+    "experience_id": "770313273122806379",
+    "run_comparaison": "55ce5c5a7d744ac2bca900f1eebc3a3c",
+    "runs_modeles": {
+      "hist_gradient_boosting": "d8ef8da9b8d440d9add795e4379aac30",
+      "random_forest": "67fe1249d982471fabf71401f69ca72c",
+      "ridge": "9b72a38f6f8e4477a36fe3eee5800154"
+    },
+    "champion": "hist_gradient_boosting",
+    "quality_gate": "passed",
+    "run_eval_assistant_llm": "53d0a0d226ea45d99df5d4da096a50a1",
+    "registry_candidat": "rul-fd001 v1",
+    "registry_champion": "rul-fd001 v1"
+  },
+  "commandes": [
+    "pip install -r requirements.txt",
+    "dvc pull   # ou placer les fichiers FD001 dans data/raw/",
+    "dvc repro  # ingestion RAG, comparaison et entrainement, analyse, evaluation assistant",
+    "pytest -v",
+    "python -m src.simulation --local",
+    "python -m src.reproductibilite"
+  ]
+}

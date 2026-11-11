@@ -10,15 +10,7 @@ mlruns/
 data/raw/*_FD002.txt
 data/raw/*_FD003.txt
 data/raw/*_FD004.txt
-data/raw/readme.txtdata/raw/*_FD002.txt
-data/raw/*_FD003.txt
-data/raw/*_FD004.txt
 data/raw/readme.txt
-data/raw/*_FD002.txt
-data/raw/*_FD003.txt
-data/raw/*_FD004.txt
-data/raw/readme.txt
-data/raw/*_FD002.txt
-data/raw/*_FD003.txt
-data/raw/*_FD004.txt
-data/raw/readme.txt
+# Secrets (cle Groq) et journaux de l'API
+.env
+logs/

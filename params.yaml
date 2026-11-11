@@ -11,14 +11,39 @@ model:
   min_samples_leaf: 5
   random_state: 42
   n_jobs: -1
+comparaison:
+  # La baseline sert de reference pour le Quality Gate
+  baseline: ridge
+  candidats: [ridge, random_forest, hist_gradient_boosting]
+  ridge:
+    alpha: 1.0
+  hist_gradient_boosting:
+    max_iter: 300
+    learning_rate: 0.05
+    max_depth: 6
+    random_state: 42
 quality_gate:
-  min_r2: 0.5
-  max_rmse: 30.0
+  # Seuils fixes a partir de mesures sur la validation FD001 (voir README) :
+  # - prediction constante (moyenne) : RMSE 41.5 ; baseline Ridge : RMSE 21.2, R2 0.74
+  # - max_rmse 25 : la moitie de la marge critique (50 cycles), au-dela le
+  #   statut CRITIQUE / SURVEILLANCE n'est plus fiable
+  # - min_r2 0.7 : le modele doit expliquer au moins 70 % de la variance
+  # - alertes manquees : la baseline en rate 35 %, on en tolere au plus 25 %
+  # - le champion doit battre la baseline en RMSE
+  min_r2: 0.7
+  max_rmse: 25.0
+  max_taux_alertes_manquees: 0.25
+  exiger_mieux_que_baseline: true
 training:
   experiment_name: maintenance-predictive-hybride
   mlruns_dir: mlruns
   model_path: models/model.joblib
   metrics_path: metrics.json
+  comparaison_path: reports/comparaison_modeles.json
+registry:
+  nom_modele: rul-fd001
+  alias_candidat: candidat
+  alias_champion: champion
 rag:
   pdf_path: docs/nasa_cmapss_paper.pdf
   embedding_model: sentence-transformers/all-MiniLM-L6-v2
@@ -36,3 +61,32 @@ generation:
 api:
   seuil_critique: 50
   seuil_attention: 100
+assistant:
+  # Modele Groq : les Llama sont reserves aux comptes Enterprise depuis
+  # aout 2026, on utilise donc gpt-oss-20b (accessible avec une cle gratuite)
+  modele: openai/gpt-oss-20b
+  temperature: 0.0
+  max_tokens: 900
+  reasoning_effort: low
+  timeout_s: 30
+  top_k: 4
+  nb_capteurs_anormaux: 3
+  longueur_max_question: 500
+  # Tarifs publics Groq (USD par million de tokens) pour estimer le cout
+  prix_entree_usd_1m: 0.075
+  prix_sortie_usd_1m: 0.30
+  # Limite du compte gratuit Groq pour gpt-oss-20b : 8000 tokens/minute.
+  # L'evaluation espace ses appels pour rester sous cette limite (marge de
+  # securite) : sinon Groq met les requetes en attente et la latence mesuree
+  # devient celle de la file d'attente, pas celle du modele.
+  limite_tokens_par_minute: 7000
+  tokens_estimes_par_question: 2000
+  questions_eval_path: data/eval/questions_assistant.yaml
+  metrics_path: assistant_metrics.json
+  quality_gate:
+    min_taux_refus_hors_perimetre: 1.0
+    min_taux_reponse_dans_perimetre: 0.9
+    min_taux_citation: 0.8
+    max_latence_p95_ms: 8000
+monitoring:
+  journal_path: logs/requetes.jsonl

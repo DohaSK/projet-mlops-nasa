@@ -13,23 +13,63 @@ stages:
       - models/rag
 
   train:
+    # Compare ridge, random_forest et hist_gradient_boosting, enregistre le
+    # champion dans le MLflow Model Registry (code 1 si le Quality Gate echoue)
     cmd: python -m src.ml.train
     deps:
       - data/raw/train_FD001.txt
       - data/raw/test_FD001.txt
       - data/raw/RUL_FD001.txt
       - models/rag
-      - src/ml
+      - src/ml/data.py
+      - src/ml/model.py
+      - src/ml/train.py
       - src/rag/retrieval.py
-      - params.yaml
     params:
       - data
       - model
+      - comparaison
       - quality_gate
       - training
+      - registry
       - rag
+      - api.seuil_critique
     outs:
       - models/model.joblib
+      - reports/comparaison_modeles.json:
+          cache: false
     metrics:
       - metrics.json:
+          cache: false
+
+  analyse_erreurs:
+    cmd: python -m src.ml.analyse_erreurs
+    deps:
+      - models/model.joblib
+      - reports/comparaison_modeles.json
+      - src/ml/analyse_erreurs.py
+    params:
+      - api
+    outs:
+      - reports/analyse_erreurs.json:
+          cache: false
+      - reports/fig_predit_vs_reel.png:
+          cache: false
+      - reports/fig_rmse_par_tranche.png:
+          cache: false
+
+  eval_assistant:
+    cmd: python -m src.assistant.evaluation
+    deps:
+      - models/model.joblib
+      - models/rag
+      - data/raw/test_FD001.txt
+      - data/raw/RUL_FD001.txt
+      - data/eval/questions_assistant.yaml
+      - src/assistant
+    params:
+      - assistant
+      - api
+    metrics:
+      - assistant_metrics.json:
           cache: false

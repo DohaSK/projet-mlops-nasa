@@ -1,0 +1,167 @@
+{
+  "champion": "hist_gradient_boosting",
+  "erreur_par_tranche_validation": {
+    "ridge": [
+      {
+        "tranche_rul_reelle": "0-24",
+        "n": 500,
+        "rmse": 20.16,
+        "biais": 7.53
+      },
+      {
+        "tranche_rul_reelle": "25-49",
+        "n": 500,
+        "rmse": 25.18,
+        "biais": 19.39
+      },
+      {
+        "tranche_rul_reelle": "50-74",
+        "n": 500,
+        "rmse": 23.61,
+        "biais": 15.88
+      },
+      {
+        "tranche_rul_reelle": "75-99",
+        "n": 500,
+        "rmse": 18.33,
+        "biais": 4.84
+      },
+      {
+        "tranche_rul_reelle": "100-125",
+        "n": 2493,
+        "rmse": 20.55,
+        "biais": -12.62
+      }
+    ],
+    "random_forest": [
+      {
+        "tranche_rul_reelle": "0-24",
+        "n": 500,
+        "rmse": 9.41,
+        "biais": 4.06
+      },
+      {
+        "tranche_rul_reelle": "25-49",
+        "n": 500,
+        "rmse": 26.0,
+        "biais": 12.89
+      },
+      {
+        "tranche_rul_reelle": "50-74",
+        "n": 500,
+        "rmse": 27.97,
+        "biais": 14.97
+      },
+      {
+        "tranche_rul_reelle": "75-99",
+        "n": 500,
+        "rmse": 21.35,
+        "biais": 6.76
+      },
+      {
+        "tranche_rul_reelle": "100-125",
+        "n": 2493,
+        "rmse": 15.88,
+        "biais": -11.4
+      }
+    ],
+    "hist_gradient_boosting": [
+      {
+        "tranche_rul_reelle": "0-24",
+        "n": 500,
+        "rmse": 9.08,
+        "biais": 3.62
+      },
+      {
+        "tranche_rul_reelle": "25-49",
+        "n": 500,
+        "rmse": 26.14,
+        "biais": 12.46
+      },
+      {
+        "tranche_rul_reelle": "50-74",
+        "n": 500,
+        "rmse": 28.71,
+        "biais": 15.03
+      },
+      {
+        "tranche_rul_reelle": "75-99",
+        "n": 500,
+        "rmse": 21.83,
+        "biais": 6.99
+      },
+      {
+        "tranche_rul_reelle": "100-125",
+        "n": 2493,
+        "rmse": 15.35,
+        "biais": -10.72
+      }
+    ]
+  },
+  "matrice_statuts_validation_champion": {
+    "CRITIQUE": {
+      "CRITIQUE": 812,
+      "SURVEILLANCE": 167,
+      "NORMAL": 21
+    },
+    "SURVEILLANCE": {
+      "CRITIQUE": 105,
+      "SURVEILLANCE": 522,
+      "NORMAL": 373
+    },
+    "NORMAL": {
+      "CRITIQUE": 0,
+      "SURVEILLANCE": 353,
+      "NORMAL": 2140
+    }
+  },
+  "matrice_statuts_test_officiel_champion": {
+    "CRITIQUE": {
+      "CRITIQUE": 27,
+      "SURVEILLANCE": 3,
+      "NORMAL": 0
+    },
+    "SURVEILLANCE": {
+      "CRITIQUE": 4,
+      "SURVEILLANCE": 16,
+      "NORMAL": 16
+    },
+    "NORMAL": {
+      "CRITIQUE": 0,
+      "SURVEILLANCE": 4,
+      "NORMAL": 30
+    }
+  },
+  "pires_moteurs_test_officiel": [
+    {
+      "moteur": 41,
+      "rul_reelle": 18.0,
+      "rul_predite": 70.7,
+      "erreur": 52.7
+    },
+    {
+      "moteur": 79,
+      "rul_reelle": 63.0,
+      "rul_predite": 114.2,
+      "erreur": 51.2
+    },
+    {
+      "moteur": 27,
+      "rul_reelle": 66.0,
+      "rul_predite": 116.9,
+      "erreur": 50.9
+    },
+    {
+      "moteur": 93,
+      "rul_reelle": 85.0,
+      "rul_predite": 44.6,
+      "erreur": -40.4
+    },
+    {
+      "moteur": 12,
+      "rul_reelle": 124.0,
+      "rul_predite": 86.0,
+      "erreur": -38.0
+    }
+  ]
+}

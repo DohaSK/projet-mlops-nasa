@@ -1,0 +1,47 @@
+[
+  {
+    "type_modele": "ridge",
+    "run_id": "9b72a38f6f8e4477a36fe3eee5800154",
+    "rmse": 21.2025,
+    "r2": 0.7362,
+    "taux_alertes_manquees": 0.354,
+    "taux_fausses_alertes": 0.0083,
+    "surestimation_moyenne_critique": 13.4631,
+    "rmse_train": 21.5485,
+    "r2_train": 0.7335,
+    "rmse_test_officiel": 20.782,
+    "r2_test_officiel": 0.7311,
+    "taux_alertes_manquees_test_officiel": 0.3333,
+    "duree_entrainement_s": 0.02
+  },
+  {
+    "type_modele": "random_forest",
+    "run_id": "67fe1249d982471fabf71401f69ca72c",
+    "rmse": 19.0478,
+    "r2": 0.7871,
+    "taux_alertes_manquees": 0.2,
+    "taux_fausses_alertes": 0.0286,
+    "surestimation_moyenne_critique": 8.4732,
+    "rmse_train": 12.1533,
+    "r2_train": 0.9152,
+    "rmse_test_officiel": 17.3935,
+    "r2_test_officiel": 0.8116,
+    "taux_alertes_manquees_test_officiel": 0.2333,
+    "duree_entrainement_s": 4.65
+  },
+  {
+    "type_modele": "hist_gradient_boosting",
+    "run_id": "d8ef8da9b8d440d9add795e4379aac30",
+    "rmse": 18.9908,
+    "r2": 0.7884,
+    "taux_alertes_manquees": 0.188,
+    "taux_fausses_alertes": 0.0301,
+    "surestimation_moyenne_critique": 8.0421,
+    "rmse_train": 15.9975,
+    "r2_train": 0.8531,
+    "rmse_test_officiel": 17.3367,
+    "r2_test_officiel": 0.8128,
+    "taux_alertes_manquees_test_officiel": 0.1,
+    "duree_entrainement_s": 1.4
+  }
+]

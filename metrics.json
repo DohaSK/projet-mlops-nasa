@@ -1,10 +1,16 @@
 {
-  "rmse": 19.04784198573481,
-  "r2": 0.7870867432422273,
-  "rmse_test_officiel": 17.39350472979144,
-  "r2_test_officiel": 0.8116071177819607,
+  "champion": "hist_gradient_boosting",
+  "rmse": 18.990789165217905,
+  "r2": 0.7883602848646769,
+  "taux_alertes_manquees": 0.188,
+  "rmse_test_officiel": 17.336749543866127,
+  "r2_test_officiel": 0.8128345677668037,
+  "taux_alertes_manquees_test_officiel": 0.1,
+  "baseline_rmse": 21.202462694670523,
   "rag_nb_chunks": 53.0,
-  "rag_duree_ingestion_s": 20.41,
-  "rag_retrieval_ms": 17.9,
-  "quality_gate_passed": true
+  "rag_duree_ingestion_s": 84.44,
+  "rag_retrieval_ms": 46.37,
+  "registry_version": 1,
+  "quality_gate_passed": true,
+  "quality_gate_raisons": []
 }

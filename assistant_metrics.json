@@ -1,0 +1,14 @@
+{
+  "mode": "llm",
+  "nb_requetes": 42,
+  "taux_refus_hors_perimetre": 1.0,
+  "taux_reponse_dans_perimetre": 1.0,
+  "taux_citation": 1.0,
+  "taux_secours": 0.259,
+  "latence_moyenne_ms": 1434.2,
+  "latence_p95_ms": 2750.4,
+  "tokens_total": 54832,
+  "cout_total_usd": 0.006136,
+  "quality_gate_passed": true,
+  "attente_debit_s": 514.6
+}
