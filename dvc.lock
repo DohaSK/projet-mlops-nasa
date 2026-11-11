@@ -1,0 +1,113 @@
+schema: '2.0'
+stages:
+  ingestion_rag:
+    cmd: python -m src.rag.ingestion
+    deps:
+    - path: docs/nasa_cmapss_paper.pdf
+      hash: md5
+      md5: 0d0cc7de80315acf1ac9e665b81a809c
+      size: 434158
+    - path: src/config.py
+      hash: md5
+      md5: b59fdef4ade79d074d03dd0ae4dfcc54
+      size: 567
+    - path: src/rag/ingestion.py
+      hash: md5
+      md5: 47fa4b2afe2ada75b39713efc01eed59
+      size: 5164
+    - path: src/rag/retrieval.py
+      hash: md5
+      md5: 1ce278c31cea29a07c5c76d5f8cd157a
+      size: 1472
+    params:
+      params.yaml:
+        rag:
+          pdf_path: docs/nasa_cmapss_paper.pdf
+          embedding_model: sentence-transformers/all-MiniLM-L6-v2
+          chunk_size: 150
+          chunk_overlap: 30
+          top_k: 4
+          index_path: models/rag/faiss_index.bin
+          chunks_path: models/rag/chunks.json
+          question_critique: Which sensors and physical engine modules (HPC, 
+            HPT) are most affected by advanced degradation in the C-MAPSS model?
+    outs:
+    - path: models/rag
+      hash: md5
+      md5: 91f078afa681eda990fa2ad13542a01e.dir
+      size: 132797
+      nfiles: 3
+  train:
+    cmd: python -m src.ml.train
+    deps:
+    - path: data/raw/RUL_FD001.txt
+      hash: md5
+      md5: 8f4a8b3d2692b2f7d8e72b344927bf4b
+      size: 429
+    - path: data/raw/test_FD001.txt
+      hash: md5
+      md5: 62316d1dd70f88a9a43a1e2690765437
+      size: 2228855
+    - path: data/raw/train_FD001.txt
+      hash: md5
+      md5: 259f340bac32ce6fa8894815600fa757
+      size: 3515356
+    - path: models/rag
+      hash: md5
+      md5: 91f078afa681eda990fa2ad13542a01e.dir
+      size: 132797
+      nfiles: 3
+    - path: params.yaml
+      hash: md5
+      md5: ffdcbe450715616a568d019e682627bf
+      size: 1250
+    - path: src/ml
+      hash: md5
+      md5: 5fb1746979d2729b2663a5a4a50f7f31.dir
+      size: 24249
+      nfiles: 8
+    - path: src/rag/retrieval.py
+      hash: md5
+      md5: 1ce278c31cea29a07c5c76d5f8cd157a
+      size: 1472
+    params:
+      params.yaml:
+        data:
+          train_path: data/raw/train_FD001.txt
+          test_path: data/raw/test_FD001.txt
+          rul_path: data/raw/RUL_FD001.txt
+          rul_cap: 125
+          test_size: 0.2
+        model:
+          n_estimators: 100
+          max_depth: 15
+          min_samples_leaf: 5
+          random_state: 42
+          n_jobs: -1
+        quality_gate:
+          min_r2: 0.5
+          max_rmse: 30.0
+        rag:
+          pdf_path: docs/nasa_cmapss_paper.pdf
+          embedding_model: sentence-transformers/all-MiniLM-L6-v2
+          chunk_size: 150
+          chunk_overlap: 30
+          top_k: 4
+          index_path: models/rag/faiss_index.bin
+          chunks_path: models/rag/chunks.json
+          question_critique: Which sensors and physical engine modules (HPC, 
+            HPT) are most affected by advanced degradation in the C-MAPSS model?
+        training:
+          experiment_name: maintenance-predictive-hybride
+          mlruns_dir: mlruns
+          model_path: models/model.joblib
+          metrics_path: metrics.json
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 53f02297ca3a51516468b4b0ba72b315
+      size: 271
+    - path: models/model.joblib
+      hash: md5
+      md5: 102414174d90ed64677d1e05622b9907
+      size: 16802583

@@ -1,0 +1,10 @@
+{
+  "rmse": 19.04784198573481,
+  "r2": 0.7870867432422273,
+  "rmse_test_officiel": 17.39350472979144,
+  "r2_test_officiel": 0.8116071177819607,
+  "rag_nb_chunks": 53.0,
+  "rag_duree_ingestion_s": 20.41,
+  "rag_retrieval_ms": 17.9,
+  "quality_gate_passed": true
+}
