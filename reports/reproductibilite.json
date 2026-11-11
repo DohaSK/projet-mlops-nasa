@@ -16,8 +16,8 @@
     "pytest": "8.3.3",
     "ruff": "0.7.4"
   },
-  "git_commit": null,
-  "git_modifications_non_commitees": true,
+  "git_commit": "e958f90ddeeaf7b192be818ad6620e00804fc62e",
+  "git_modifications_non_commitees": false,
   "donnees_dvc": {
     "data/raw/train_FD001.txt": {
       "md5": "259f340bac32ce6fa8894815600fa757",
