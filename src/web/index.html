@@ -70,12 +70,23 @@ svg.lucide { width: 1.3rem; height: 1.3rem; stroke-width: 1.8; flex: none; }
 .nav a[aria-current="page"]::before { content: ""; position: absolute; left: -1rem; top: .55rem; bottom: .55rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--cyan); }
 .nav a[aria-current="page"] svg { color: var(--cyan); }
 .nav .count { margin-left: auto; font-size: .82rem; font-family: var(--mono); padding: .05rem .55rem; border-radius: 999px; background: rgba(244,63,94,.18); color: #fda4af; }
-.side-foot { margin-top: auto; border-top: 1px solid var(--border); padding-top: .8rem; display: grid; gap: .4rem; font-size: .92rem; }
+.side-foot { margin-top: auto; border-top: 1px solid var(--border); padding-top: 1rem; display: grid; gap: .4rem; font-size: .92rem; }
 .sys-row { display: flex; align-items: center; justify-content: space-between; font-size: .85rem; color: var(--text-2); padding: 0 .6rem; }
 .dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
 .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(16,185,129,.6); }
 .dot.warn { background: var(--warn); box-shadow: 0 0 8px rgba(245,158,11,.5); }
 .dot.crit { background: var(--crit); box-shadow: 0 0 8px rgba(244,63,94,.5); }
+.mini-flotte { margin: 1.3rem .35rem 1.2rem; padding: 1rem .95rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; gap: .45rem; }
+.mini-flotte[hidden] { display: none; }
+.mini-flotte .tt { display: flex; align-items: center; justify-content: space-between; font-size: .84rem; color: var(--muted); }
+.mini-flotte .tt b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.mini-flotte .barre { display: flex; height: .5rem; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--surface-3); }
+.mini-flotte .barre i { display: block; height: 100%; }
+.mini-flotte a { display: flex; align-items: center; gap: .6rem; font-size: .9rem; color: var(--text-2); padding: .2rem .35rem; border-radius: 8px; }
+.mini-flotte a:hover { background: var(--surface-2); color: var(--text); }
+.mini-flotte a .dot { box-shadow: none; }
+.mini-flotte a b { margin-left: auto; font-family: var(--mono); color: var(--text); font-weight: 600; }
+@media (max-height: 640px) { .mini-flotte { display: none !important; } }
 .side-foot a.lien { display: flex; align-items: center; gap: .7rem; font-size: .88rem; color: var(--text-2); padding: .5rem .6rem; border-radius: 8px; }
 .side-foot a.lien:hover { background: var(--surface-2); }
 .side-foot .src { font-size: .78rem; color: var(--muted); padding: 0 .6rem; margin: 0; }
@@ -546,6 +557,7 @@ tr.al-row td:first-child { box-shadow: inset 3px 0 0 var(--ton); }
       <a href="#/prediction" data-page="prediction" title="Prédiction RUL"><i data-lucide="cpu"></i><span class="lbl">Prédiction RUL</span></a>
       <a href="#/assistant" data-page="assistant" title="Assistant IA"><i data-lucide="bot"></i><span class="lbl">Assistant IA</span></a>
     </nav>
+    <div class="mini-flotte lbl" id="mini-flotte" hidden></div>
     <div class="side-foot">
       <div class="sys-row" title="Modèle ML"><span class="lbl">Modèle ML</span><span class="dot" id="s-modele"></span></div>
       <div class="sys-row" title="Index documentaire"><span class="lbl">Index documentaire</span><span class="dot" id="s-rag"></span></div>
@@ -1410,6 +1422,17 @@ const largeurActuelle = () => $("#sidebar").getBoundingClientRect().width;
 })();
 
 /* ================= Routage et demarrage ================= */
+function resumeMenu() {
+  const el = $("#mini-flotte");
+  const t = etat.flotte.length;
+  if (!el || !t) return;
+  const n = (s) => etat.flotte.filter((m) => m.statut_predit === s).length;
+  const lignes = [["CRITIQUE", "Critiques", "#/alertes", "crit"], ["SURVEILLANCE", "Surveillance", "#/alertes", "warn"], ["NORMAL", "Normaux", "#/flotte", "ok"]];
+  el.innerHTML = `<div class="tt"><span>État de la flotte</span><b>${t} moteurs</b></div>
+    <div class="barre" aria-hidden="true">${lignes.map(([s]) => `<i style="width:${n(s) / t * 100}%;background:${COUL[s]}"></i>`).join("")}</div>
+    ${lignes.map(([s, lib, lien, cls]) => `<a href="${lien}"><span class="dot ${cls}"></span>${lib}<b>${n(s)}</b></a>`).join("")}`;
+  el.hidden = false;
+}
 function allerMoteur(n) { if (n) location.hash = `#/moteur/${n}`; }
 async function router() {
   const [, nom = "vue", arg] = location.hash.split("/");
@@ -1448,6 +1471,7 @@ async function charger() {
   try {
     etat.flotte = await api("/moteurs");
     const nb = etat.flotte.filter((m) => m.statut_predit === "CRITIQUE").length;
+    resumeMenu();
     const c = $("#nb-alertes"); c.textContent = nb; c.hidden = !nb;
   } catch (e) {
     etat.flotte = [];
