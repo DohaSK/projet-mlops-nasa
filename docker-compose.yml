@@ -1,0 +1,34 @@
+# docker-compose.yml
+# Lancer :            docker compose up --build
+# Avec MLflow UI :    docker compose --profile mlflow up --build
+services:
+  api:
+    build: .
+    image: projet-mlops-nasa:latest
+    container_name: assistant-turbofan
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env          # cle GROQ_API_KEY (facultative : sans cle, mode extractif)
+        required: false
+    volumes:
+      - ./data:/app/data        # donnees FD001 (DVC)
+      - ./models:/app/models    # modele et index RAG : reutilises s'ils existent deja
+      - ./mlruns:/app/mlruns
+      - ./logs:/app/logs        # journal de monitoring
+      - hf-cache:/app/.cache/huggingface  # modele d'embeddings telecharge une seule fois
+    restart: unless-stopped
+
+  mlflow:
+    image: projet-mlops-nasa:latest
+    profiles: ["mlflow"]
+    depends_on:
+      - api
+    command: mlflow ui --backend-store-uri /app/mlruns --host 0.0.0.0 --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+
+volumes:
+  hf-cache:

@@ -286,3 +286,42 @@ def test_attendre_debit_respecte_la_limite():
     assert len(historique) == 1
     # Sous la limite : aucune attente
     assert attendre_debit(deque([(temps["t"], 1000)]), 7000, 2000, horloge, dormir) == 0.0
+
+
+# Interface web et flotte de test
+def test_flotte_trajectoire(modele, donnees_synthetiques):
+    from src.flotte import Flotte
+
+    df = donnees_synthetiques[donnees_synthetiques["unit_number"] <= 3]
+    df = df[df["time_in_cycles"] <= 100]  # moteurs tronques, comme test_FD001
+    f = Flotte(PARAMS, modele[0], df=df, rul_finales=[10.0, 60.0, 120.0])
+    resume = f.resume()
+    assert [m["moteur"] for m in resume] == [1, 2, 3]
+    assert resume[0]["statut_reel"] == "CRITIQUE"
+    d = f.detail(1)
+    assert len(d["cycles"]) == len(d["rul_predite_par_cycle"]) == len(d["rul_reelle_par_cycle"])
+    # RUL reelle : 10 au dernier cycle, +1 par cycle en remontant, plafonnee a 125
+    assert d["rul_reelle_par_cycle"][-1] == 10.0 and d["rul_reelle_par_cycle"][-2] == 11.0
+    assert max(d["rul_reelle_par_cycle"]) <= PARAMS["data"]["rul_cap"]
+    assert set(d["capteurs"]) == set(COLONNES_FEATURES)
+    assert f.detail(999) is None
+
+
+def test_api_interface_et_moteurs(client_api, modele, donnees_synthetiques, monkeypatch):
+    from src.flotte import Flotte
+
+    c, _ = client_api
+    page = c.get("/ui")
+    assert page.status_code == 200 and "Assistant de maintenance" in page.text
+    assert c.get("/", follow_redirects=False).status_code in (302, 307)
+
+    df = donnees_synthetiques[donnees_synthetiques["unit_number"] <= 2]
+    monkeypatch.setattr(api, "Flotte", lambda p, m: Flotte(p, m, df=df, rul_finales=[5.0, 90.0]))
+    api.app.state.flotte = None
+    liste = c.get("/moteurs").json()
+    assert len(liste) == 2
+    detail = c.get("/moteurs/1").json()
+    assert detail["statut"] in ("CRITIQUE", "SURVEILLANCE", "NORMAL")
+    assert len(detail["capteurs_anormaux"]) == PARAMS["assistant"]["nb_capteurs_anormaux"]
+    assert c.get("/moteurs/42").status_code == 404
+    assert c.get("/health").json()["seuils"]["critique"] == PARAMS["api"]["seuil_critique"]

@@ -39,7 +39,10 @@ src/ml/                donnees, modeles, comparaison et registre MLflow, analyse
 src/rag/               ingestion PDF, retrieval FAISS, generation
 src/assistant/         assistant de maintenance (LLM Groq, garde-fous, evaluation)
 src/journal.py         journal JSONL des requetes de l'API
-app.py                 API FastAPI unifiee
+app.py                 API FastAPI unifiee (et interface web /ui)
+src/web/index.html     interface web
+src/flotte.py          donnees de la flotte de test pour l'interface
+Dockerfile, docker-compose.yml, scripts/demarrer.sh   conteneurisation
 monitor.py             indicateurs de monitoring a partir du journal
 src/simulation.py      simulation de trafic de production sur l'API
 src/reproductibilite.py fiche de reproductibilite (versions, hash DVC, runs MLflow)
@@ -176,6 +179,42 @@ Voir `REPRODUCIBILITE.md`. La commande `python -m src.reproductibilite`
 ecrit `reports/reproductibilite.json` (versions, commit, hash DVC, runs MLflow,
 version du registre).
 
+## Interface web
+
+Une fois l'API lancee, ouvrir http://127.0.0.1:8000/ui (ou http://127.0.0.1:8000).
+L'application TurboWatch (theme sombre, barre laterale, graphiques interactifs
+ECharts, icones Lucide) n'utilise que les endpoints existants de l'API :
+
+| Page | Contenu | Endpoints |
+|---|---|---|
+| Vue d'ensemble | KPI de la flotte, RUL predite contre reelle (clic sur un point pour ouvrir le moteur), repartition des statuts, distribution des RUL, moteurs prioritaires | `/moteurs`, `/health` |
+| Flotte | Tableau des 100 moteurs : recherche, filtres par statut ou ecart, tri par colonne | `/moteurs` |
+| Moteur | KPI, trajectoire de RUL zoomable, jauge, capteurs inhabituels, recommandations, 24 mesures du dernier cycle | `/moteurs/{n}` |
+| Alertes | File d'alertes triee par gravite : critiques, surveillance, alertes manquees et statuts a verifier | `/moteurs` |
+| Anomalies capteurs | Analyse des 100 moteurs, classement par z-score, capteurs les plus frequents | `/moteurs/{n}` |
+| Prediction RUL | Formulaire des 24 mesures pre-rempli, prediction et explication RAG si critique | `/predict` |
+| Assistant IA | Conversation sourcee sur un moteur, mode, latence, tokens, cout, garde-fous | `/assistant` |
+
+Les graphiques, les icones et les polices sont charges depuis Internet (CDN).
+
+## Docker
+
+Prerequis : Docker Desktop, et les fichiers FD001 dans `data/raw/`.
+
+```bash
+docker compose up --build                    # API + interface sur http://localhost:8000
+docker compose --profile mlflow up --build   # ajoute MLflow UI sur http://localhost:5000
+```
+
+Les dossiers `data/`, `models/`, `mlruns/` et `logs/` sont montes depuis la
+machine : si le modele et l'index RAG existent deja (apres `dvc repro`), le
+conteneur demarre directement ; sinon `scripts/demarrer.sh` construit l'index
+puis entraine le modele au premier lancement. La cle Groq est lue dans `.env`
+(facultative). Le modele d'embeddings est garde dans un volume Docker pour
+n'etre telecharge qu'une fois. Limite : les runs MLflow crees sous Windows
+gardent des chemins Windows, leurs artefacts ne s'affichent donc pas dans
+MLflow UI en conteneur (les metriques et parametres, si).
+
 ## Lancer l'API
 
 ```bash
@@ -185,6 +224,8 @@ uvicorn app:app --reload
 - `GET /health` : statut de l'API, du modele, de l'index RAG et mode de l'assistant
 - `POST /predict` : corps JSON avec `setting1` a `setting3` et `s1` a `s21`
 - `POST /assistant` : question libre + capteurs (voir section Assistant)
+- `GET /moteurs`, `GET /moteurs/{n}` : flotte de test pour l'interface
+- `GET /ui` : interface web
 - Documentation interactive : http://127.0.0.1:8000/docs
 
 Reponse type quand la RUL est critique :

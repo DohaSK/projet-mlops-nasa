@@ -10,12 +10,14 @@ import joblib
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field, create_model
 
 from src.assistant.assistant import repondre
 from src.assistant.capteurs import capteurs_anormaux
 from src.assistant.llm import creer_client
 from src.config import charger_params, chemin_projet
+from src.flotte import Flotte
 from src.journal import journaliser
 from src.ml.data import COLONNES_FEATURES
 from src.rag.generation import extraire_references, generer_reponse
@@ -83,6 +85,7 @@ async def lifespan(app):
     app.state.params = charger_params()
     app.state.modele = charger_modele(app.state.params)
     app.state.client_llm = creer_client(app.state.params)
+    app.state.flotte = None  # chargee a la premiere visite de l'interface
     yield
 
 
@@ -130,6 +133,10 @@ def health():
         "model_loaded": app.state.modele is not None,
         "rag_index_ready": chemin_projet(params["rag"]["index_path"]).exists(),
         "assistant_mode": "llm" if app.state.client_llm else "extractif",
+        "seuils": {
+            "critique": params["api"]["seuil_critique"],
+            "attention": params["api"]["seuil_attention"],
+        },
     }
 
 
@@ -186,3 +193,49 @@ def assistant(corps: QuestionAssistant, request: Request):
         "cout_estime_usd": resultat["cout_estime_usd"],
     }
     return resultat
+
+
+# Interface web
+PAGE_UI = chemin_projet("src/web/index.html")
+
+
+def flotte():
+    """Flotte de test, calculee une seule fois (necessite le modele et FD001)."""
+    if app.state.modele is None:
+        raise HTTPException(status_code=503, detail="Modele non charge")
+    if app.state.flotte is None:
+        try:
+            app.state.flotte = Flotte(app.state.params, app.state.modele)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
+    return app.state.flotte
+
+
+@app.get("/", include_in_schema=False)
+def accueil():
+    return RedirectResponse("/ui")
+
+
+@app.get("/ui", include_in_schema=False)
+def interface():
+    return FileResponse(PAGE_UI, media_type="text/html")
+
+
+@app.get("/moteurs")
+def moteurs():
+    """Les 100 moteurs de test : RUL predite et reelle au dernier cycle."""
+    return flotte().resume()
+
+
+@app.get("/moteurs/{moteur}")
+def moteur(moteur: int):
+    """Trajectoire d'un moteur, capteurs du dernier cycle et capteurs inhabituels."""
+    detail = flotte().detail(moteur)
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"Moteur {moteur} introuvable")
+    params = app.state.params
+    detail["statut"] = calculer_statut(detail["rul_predite"], params)
+    detail["capteurs_anormaux"] = capteurs_anormaux(
+        app.state.modele, detail["capteurs"], params["assistant"]["nb_capteurs_anormaux"]
+    )
+    return detail

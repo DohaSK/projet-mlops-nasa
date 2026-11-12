@@ -1,0 +1,1300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TurboWatch, assistant de maintenance prédictive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+<style>
+/* ===== Jetons de design =====
+   Echelle fluide : la taille de base suit la largeur de l'ecran
+   (environ 15 px a 1366 px, 16 px a 1600 px, 17,5 px a 1920 px). */
+:root {
+  --bg: #070b16; --bg-2: #0a1020;
+  --surface: #0f172a; --surface-2: #131d33; --surface-3: #1a2640;
+  --border: #1f2c47; --border-2: #2c3d61;
+  --text: #e8eef8; --text-2: #b8c4d8; --muted: #8494b0;
+  --cyan: #22d3ee; --blue: #3b82f6; --violet: #a78bfa;
+  --ok: #10b981; --warn: #f59e0b; --crit: #f43f5e;
+  --radius: 14px; --radius-sm: 10px;
+  --sidebar: 17.5rem;
+  --pad: clamp(1rem, 1.6vw, 2rem);
+  --gap: clamp(1rem, 1.2vw, 1.5rem);
+  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html { font-size: clamp(15px, calc(8.6px + .46vw), 18px); }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(1200px 600px at 85% -10%, rgba(59,130,246,.10), transparent 60%),
+              radial-gradient(900px 500px at -10% 110%, rgba(34,211,238,.06), transparent 60%), var(--bg);
+  color: var(--text); font: 1rem/1.55 var(--font); -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--cyan); text-decoration: none; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+svg.lucide { width: 1.25rem; height: 1.25rem; stroke-width: 1.8; flex: none; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ===== Coquille ===== */
+.shell { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; overflow-y: auto;
+  background: linear-gradient(180deg, #0b1222, #080d1a); border-right: 1px solid var(--border);
+  padding: 1.25rem 1rem; z-index: 30;
+}
+.brand { display: flex; align-items: center; gap: .85rem; padding: .25rem .5rem 1.4rem; }
+.brand-mark {
+  width: 2.75rem; height: 2.75rem; border-radius: 12px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #04101f; box-shadow: 0 6px 20px rgba(34,211,238,.25);
+}
+.brand-mark svg.lucide { width: 1.6rem; height: 1.6rem; stroke-width: 2.2; }
+.brand strong { display: block; font-size: 1.2rem; letter-spacing: -.01em; }
+.brand span { display: block; font-size: .8rem; color: var(--muted); line-height: 1.3; }
+.nav-title { font-size: .8rem; color: var(--muted); padding: 1rem .75rem .45rem; font-weight: 500; }
+.nav a {
+  display: flex; align-items: center; gap: .85rem; padding: .7rem .8rem; border-radius: 10px;
+  color: var(--text-2); font-weight: 500; font-size: .98rem; position: relative; transition: background .15s, color .15s;
+}
+.nav a:hover { background: var(--surface-2); color: var(--text); }
+.nav a[aria-current="page"] { background: linear-gradient(90deg, rgba(34,211,238,.15), rgba(59,130,246,.06)); color: var(--text); }
+.nav a[aria-current="page"]::before { content: ""; position: absolute; left: -1rem; top: .55rem; bottom: .55rem; width: 3px; border-radius: 0 3px 3px 0; background: var(--cyan); }
+.nav a[aria-current="page"] svg { color: var(--cyan); }
+.nav .count { margin-left: auto; font-size: .76rem; font-family: var(--mono); padding: .05rem .55rem; border-radius: 999px; background: rgba(244,63,94,.18); color: #fda4af; }
+.side-foot { margin-top: auto; border-top: 1px solid var(--border); padding-top: 1rem; display: grid; gap: .55rem; }
+.sys-row { display: flex; align-items: center; justify-content: space-between; font-size: .85rem; color: var(--text-2); padding: 0 .6rem; }
+.dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(16,185,129,.6); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 8px rgba(245,158,11,.5); }
+.dot.crit { background: var(--crit); box-shadow: 0 0 8px rgba(244,63,94,.5); }
+.side-foot a.lien { display: flex; align-items: center; gap: .7rem; font-size: .88rem; color: var(--text-2); padding: .5rem .6rem; border-radius: 8px; }
+.side-foot a.lien:hover { background: var(--surface-2); }
+.side-foot .src { font-size: .78rem; color: var(--muted); padding: 0 .6rem; margin: 0; }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 1rem; min-height: 4.6rem;
+  padding: .8rem var(--pad); background: rgba(7,11,22,.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+}
+.topbar h1 { font-size: 1.45rem; margin: 0; letter-spacing: -.015em; line-height: 1.2; }
+.topbar .sous { font-size: .92rem; color: var(--muted); margin: .1rem 0 0; }
+.topbar .droite { margin-left: auto; display: flex; align-items: center; gap: .65rem; }
+.saut { display: flex; align-items: center; gap: .5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0 .75rem; height: 2.75rem; }
+.saut:focus-within { border-color: var(--cyan); }
+.saut input { background: transparent; border: 0; outline: 0; width: 11rem; }
+.saut svg { color: var(--muted); }
+.icon-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; color: var(--text-2); flex: none; }
+.icon-btn:hover:not(:disabled) { color: var(--text); border-color: var(--border-2); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+.menu-btn { display: none; }
+.pill { display: inline-flex; align-items: center; gap: .55rem; height: 2.75rem; padding: 0 .95rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); font-size: .9rem; color: var(--text-2); white-space: nowrap; }
+
+.content { padding: var(--pad); display: grid; gap: var(--gap); align-content: start; animation: entree .25s ease-out; }
+@keyframes entree { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .content { animation: none; } *, *::before { transition: none !important; animation-duration: .01ms !important; } }
+
+/* ===== Grilles et cartes ===== */
+.grid { display: grid; gap: var(--gap); min-width: 0; }
+.g-kpi { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.g-2-1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.g-1-1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g-1-1-1 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g-3-2 { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.card { background: linear-gradient(180deg, var(--surface), #0d1426); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.35rem 1.5rem; min-width: 0; }
+.card-h { display: flex; align-items: flex-start; gap: .8rem; margin-bottom: 1.1rem; }
+.card-h > svg.lucide { color: var(--cyan); width: 1.4rem; height: 1.4rem; margin-top: .1rem; }
+.card-h h2 { font-size: 1.12rem; margin: 0; font-weight: 600; letter-spacing: -.005em; }
+.card-h .aide { font-size: .88rem; color: var(--muted); margin: .15rem 0 0; }
+.card-h .titres { min-width: 0; }
+.card-h .actions { margin-left: auto; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+.kpi { position: relative; overflow: hidden; padding: 1.25rem 1.4rem 1.3rem; }
+.kpi.clic { cursor: pointer; transition: border-color .15s, transform .15s; }
+.kpi.clic:hover { border-color: var(--border-2); transform: translateY(-1px); }
+.kpi.actif { border-color: var(--ton); box-shadow: 0 0 0 1px var(--ton) inset; }
+.kpi .lib { color: var(--muted); font-size: .92rem; font-weight: 500; padding-right: 3.2rem; min-height: 2.6rem; display: flex; align-items: center; }
+.kpi .val { font-family: var(--mono); font-size: 2.3rem; font-weight: 600; letter-spacing: -.03em; line-height: 1.15; }
+.kpi .val small { font-size: .95rem; color: var(--muted); font-weight: 400; margin-left: .35rem; letter-spacing: 0; }
+.kpi .det { font-size: .85rem; color: var(--muted); margin-top: .3rem; }
+.kpi::after { content: ""; position: absolute; inset: auto 0 0 0; height: 3px; background: var(--ton, var(--blue)); opacity: .85; }
+.kpi .ico { position: absolute; right: 1.1rem; top: 1.1rem; width: 2.6rem; height: 2.6rem; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--ton, var(--blue)) 15%, transparent); color: var(--ton, var(--blue)); }
+
+.chart { width: 100%; height: clamp(300px, 36vh, 440px); }
+.chart.h-l { height: clamp(360px, 48vh, 580px); }
+.chart.h-s { height: clamp(240px, 28vh, 320px); }
+.card.remplir { display: flex; flex-direction: column; }
+.card.remplir > .chart { flex: 1; }
+
+/* ===== Badges, boutons, champs ===== */
+.badge { display: inline-flex; align-items: center; gap: .4rem; padding: .18rem .7rem; border-radius: 999px; font-size: .82rem; font-weight: 600; border: 1px solid; white-space: nowrap; }
+.badge::before { content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; }
+.b-CRITIQUE { color: #fda4af; background: rgba(244,63,94,.12); border-color: rgba(244,63,94,.38); }
+.b-SURVEILLANCE { color: #fcd34d; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.38); }
+.b-NORMAL { color: #6ee7b7; background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.38); }
+.b-MANQUEE { color: #c4b5fd; background: rgba(167,139,250,.12); border-color: rgba(167,139,250,.38); }
+.b-VERIFIER { color: #93c5fd; background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.38); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; height: 2.75rem; padding: 0 1.1rem; border-radius: 10px; border: 1px solid var(--border-2); background: var(--surface-2); color: var(--text); cursor: pointer; font-weight: 500; white-space: nowrap; font-size: .95rem; }
+.btn:hover:not(:disabled) { border-color: var(--cyan); }
+.btn.sm { height: 2.3rem; padding: 0 .8rem; font-size: .88rem; }
+.btn.primary { background: linear-gradient(135deg, var(--blue), #2563eb); border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(59,130,246,.3); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+.btn.cta { height: 3.4rem; font-size: 1.05rem; font-weight: 600; padding: 0 1.6rem; background: linear-gradient(135deg, #2563eb, var(--cyan)); border: 0; color: #fff; box-shadow: 0 10px 28px rgba(34,211,238,.25); }
+.btn:disabled { opacity: .55; cursor: wait; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .2rem; gap: .15rem; }
+.seg button { border: 0; background: transparent; padding: .45rem .9rem; border-radius: 8px; cursor: pointer; color: var(--text-2); font-size: .9rem; font-weight: 500; display: inline-flex; gap: .45rem; align-items: center; }
+.seg button .c { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-2); }
+.champ { height: 2.75rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-2); padding: 0 .8rem; min-width: 0; }
+.champ:focus { border-color: var(--cyan); outline: 0; }
+.recherche { display: flex; align-items: center; gap: .5rem; padding: 0 .8rem; height: 2.75rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); }
+.recherche:focus-within { border-color: var(--cyan); }
+.recherche input { border: 0; outline: 0; background: transparent; width: 12rem; min-width: 0; }
+.recherche svg { color: var(--muted); }
+.barre-outils { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+
+/* ===== Tableaux ===== */
+.table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); text-align: left; font-weight: 600; color: var(--text-2); font-size: .84rem; padding: .85rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+thead th[data-tri] { cursor: pointer; user-select: none; }
+thead th[data-tri]:hover { color: var(--text); }
+thead th .fleche { color: var(--cyan); margin-left: .3rem; }
+tbody td { padding: .85rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+tbody tr { transition: background .12s; }
+tbody tr.clic { cursor: pointer; }
+tbody tr.clic:hover { background: rgba(34,211,238,.06); }
+tbody tr.clic:hover .chev { color: var(--cyan); transform: translateX(2px); }
+.chev { color: var(--muted); transition: transform .15s; }
+tbody tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+td.wrap { white-space: normal; min-width: 18rem; }
+.ecart-plus { color: #fda4af; }
+.ecart-moins { color: #93c5fd; }
+.pagination { display: flex; align-items: center; gap: .4rem; margin-top: 1rem; flex-wrap: wrap; }
+.pagination .info { color: var(--muted); font-size: .88rem; margin-right: auto; }
+.pagination button { min-width: 2.4rem; height: 2.4rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-family: var(--mono); font-size: .88rem; }
+.pagination button[aria-current="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+.pagination button:disabled { opacity: .4; cursor: default; }
+
+/* Jauge RUL horizontale avec reperes de seuil a 50 et 100 cycles */
+.rulbar { display: grid; grid-template-columns: 9rem 3.5rem; justify-content: start; align-items: center; gap: .75rem; }
+.rulbar .piste { position: relative; height: .55rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.rulbar .piste i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.rulbar .piste::before, .rulbar .piste::after { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background: var(--bg); z-index: 1; }
+.rulbar .piste::before { left: 40%; } .rulbar .piste::after { left: 80%; }
+.rulbar .v { font-family: var(--mono); min-width: 3.5rem; text-align: right; }
+
+/* ===== Etats ===== */
+.squelette { background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: brille 1.2s infinite; border-radius: var(--radius); }
+@keyframes brille { to { background-position: -200% 0; } }
+.etat { display: grid; place-items: center; text-align: center; gap: .6rem; padding: 3rem 1.5rem; color: var(--muted); white-space: normal; }
+.etat svg.lucide { width: 2.4rem; height: 2.4rem; color: var(--border-2); }
+.etat strong { color: var(--text); font-size: 1.05rem; }
+.etat span { max-width: 32rem; }
+.erreur-box { display: flex; gap: .8rem; align-items: flex-start; padding: 1rem 1.15rem; border-radius: 12px; border: 1px solid rgba(244,63,94,.35); background: rgba(244,63,94,.08); color: #fecdd3; }
+.erreur-box svg { color: var(--crit); }
+.progression { height: .5rem; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progression i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); transition: width .2s; }
+.note { font-size: .86rem; color: var(--muted); margin: .8rem 0 0; }
+
+/* ===== Vue d'ensemble ===== */
+.prio { display: grid; gap: .6rem; }
+.prio-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .9rem; align-items: center; padding: .8rem .95rem; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); cursor: pointer; transition: border-color .15s; }
+.prio-item:hover { border-color: var(--border-2); }
+.prio-item .rang { width: 2.1rem; height: 2.1rem; border-radius: 9px; display: grid; place-items: center; font-family: var(--mono); font-weight: 600; background: rgba(244,63,94,.14); color: #fda4af; }
+.prio-item strong { display: block; }
+.prio-item .s { font-size: .84rem; color: var(--muted); display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-top: .15rem; }
+.prio-item .rul { font-family: var(--mono); font-size: 1.3rem; font-weight: 600; text-align: right; }
+.prio-item .rul small { display: block; font-size: .74rem; color: var(--muted); font-weight: 400; font-family: var(--font); }
+.fiab { display: grid; gap: .7rem; }
+.fiab-l { display: flex; align-items: center; gap: .8rem; padding: .75rem .9rem; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+.fiab-l .ic { width: 2.3rem; height: 2.3rem; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--ton) 15%, transparent); color: var(--ton); flex: none; }
+.fiab-l div { min-width: 0; }
+.fiab-l strong { display: block; font-size: .95rem; }
+.fiab-l span { font-size: .82rem; color: var(--muted); }
+.fiab-l .v { margin-left: auto; font-family: var(--mono); font-size: 1.35rem; font-weight: 600; white-space: nowrap; color: var(--text); }
+
+/* ===== Moteur ===== */
+.entete-moteur { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1rem; }
+.entete-moteur h2 { margin: 0; font-size: 1.75rem; letter-spacing: -.02em; }
+.entete-moteur .nav-m { display: flex; gap: .5rem; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.liste-ano { display: grid; gap: 1.2rem; }
+.ano { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem .8rem; }
+.ano .nom { font-weight: 600; }
+.ano .nom span { color: var(--muted); font-weight: 400; font-size: .88rem; margin-left: .4rem; }
+.ano .z { font-family: var(--mono); font-weight: 600; }
+.ano .piste { grid-column: 1 / -1; position: relative; height: .6rem; border-radius: 999px; background: var(--surface-3); }
+.ano .piste::after { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--border-2); }
+.ano .piste i { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.ano .det { grid-column: 1 / -1; font-size: .84rem; color: var(--muted); }
+.reco { display: grid; gap: .7rem; }
+.reco-item { display: flex; gap: .85rem; align-items: flex-start; padding: .9rem 1rem; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); border-left: 3px solid var(--ton, var(--border-2)); }
+.reco-item svg.lucide { margin-top: .1rem; color: var(--ton); }
+.reco-item strong { display: block; }
+.reco-item p { margin: .2rem 0 0; color: var(--text-2); font-size: .92rem; }
+.capteurs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: .75rem; }
+.capteur { padding: .85rem 1rem; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+.capteur .t { display: flex; justify-content: space-between; gap: .5rem; font-size: .86rem; color: var(--muted); }
+.capteur .t b { color: var(--cyan); font-family: var(--mono); font-weight: 500; }
+.capteur .v { font-family: var(--mono); font-size: 1.2rem; margin-top: .2rem; }
+.capteur.signale { border-color: rgba(245,158,11,.55); background: rgba(245,158,11,.05); }
+.capteur .d { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== Alertes ===== */
+.type-al { display: inline-flex; align-items: center; gap: .65rem; }
+.type-al .ic { width: 2.2rem; height: 2.2rem; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--ton) 15%, transparent); color: var(--ton); flex: none; }
+.action-al { display: flex; gap: .5rem; align-items: flex-start; color: var(--text); }
+.action-al svg { color: var(--ton); margin-top: .15rem; }
+tr.al-row td:first-child { box-shadow: inset 3px 0 0 var(--ton); }
+
+/* ===== Prediction ===== */
+.pred-page { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--gap); align-items: start; }
+.pred-page > #p-res { position: sticky; top: calc(4.6rem + var(--pad)); max-height: calc(100vh - 4.6rem - 2 * var(--pad)); overflow-y: auto; border-radius: var(--radius); scrollbar-width: thin; }
+.groupes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+.groupe { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 1.05rem 1.15rem 1.15rem; margin: 0; min-width: 0; }
+.groupe.large { grid-column: 1 / -1; }
+.groupe h3 { display: flex; align-items: center; gap: .6rem; font-size: 1rem; margin: 0 0 .9rem; font-weight: 600; }
+.groupe h3 svg { color: var(--cyan); }
+.groupe h3 .c { margin-left: auto; font-size: .8rem; color: var(--muted); font-weight: 400; }
+.champs { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .8rem; }
+.champs label { display: grid; gap: .35rem; min-width: 0; }
+.champs .l { display: flex; gap: .45rem; align-items: baseline; font-size: .9rem; }
+.champs .l b { color: var(--cyan); font-family: var(--mono); font-weight: 500; font-size: .84rem; }
+.champs .l span { color: var(--text); font-weight: 500; }
+.champs .d { font-size: .78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.champs input { width: 100%; height: 2.9rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 0 .85rem; font-family: var(--mono); font-size: 1rem; }
+.champs input:focus { border-color: var(--cyan); outline: 0; box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+.champs input.modifie { border-color: rgba(167,139,250,.7); }
+.pred-actions { position: sticky; bottom: 0; margin: 1.2rem -1.5rem -1.35rem; padding: 1.1rem 1.5rem; display: flex; gap: .8rem 1.2rem; align-items: center; flex-wrap: wrap; background: rgba(13,20,38,.94); border-top: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); backdrop-filter: blur(6px); z-index: 2; }
+.pred-actions .note { margin: 0; }
+.diag-tete { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; align-items: center; }
+.diag-rul .gros { font-family: var(--mono); font-size: 3.6rem; font-weight: 600; letter-spacing: -.04em; line-height: 1; }
+.diag-rul .u { color: var(--muted); font-size: .95rem; margin-top: .3rem; }
+.diag-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+.echelle { margin: 1.2rem 0 1.6rem; }
+.echelle .barre { position: relative; height: .75rem; border-radius: 999px; background: linear-gradient(90deg, var(--crit) 0 40%, var(--warn) 40% 80%, var(--ok) 80% 100%); opacity: .9; }
+.echelle .curseur { position: absolute; top: 50%; width: 1.15rem; height: 1.15rem; border-radius: 50%; background: #fff; border: 3px solid var(--bg); transform: translate(-50%, -50%); box-shadow: 0 0 0 2px #fff; transition: left .5s; }
+.echelle .graduations { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-top: .45rem; position: relative; height: 1rem; }
+.echelle .graduations span { position: absolute; transform: translateX(-50%); }
+.diag-section { border-top: 1px solid var(--border); margin-top: 1.2rem; padding-top: 1.1rem; }
+.diag-section h3 { display: flex; align-items: center; gap: .55rem; font-size: 1rem; margin: 0 0 .7rem; }
+.diag-section h3 svg { color: var(--cyan); }
+.texte-rag { color: var(--text-2); line-height: 1.7; margin: 0; }
+.refs { list-style: none; margin: .75rem 0 0; padding: 0; display: grid; gap: .35rem; font-size: .86rem; color: var(--muted); }
+.refs li { display: flex; gap: .5rem; align-items: center; }
+.refs svg.lucide { width: 1rem; height: 1rem; color: var(--cyan); }
+.comparaison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; margin: 0; }
+.comparaison div { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: .75rem .9rem; }
+.comparaison dt { font-size: .8rem; color: var(--muted); }
+.comparaison dd { margin: .15rem 0 0; font-family: var(--mono); font-size: 1.2rem; }
+
+/* ===== Assistant ===== */
+.ia { display: grid; grid-template-columns: 19rem minmax(0, 1fr); gap: var(--gap); height: calc(100vh - 4.6rem - 2 * var(--pad)); min-height: 36rem; }
+.ia-side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+.ia-side .card { padding: 1.1rem 1.15rem; }
+.historique { flex: 1; min-height: 12rem; display: flex; flex-direction: column; }
+.historique .liste { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: .35rem; align-content: start; margin: 0 -.3rem; padding: 0 .3rem; }
+.conv { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .65rem; align-items: center; width: 100%; text-align: left; padding: .65rem .7rem; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-2); }
+.conv:hover { background: var(--surface-2); }
+.conv[aria-current="true"] { background: var(--surface-2); border-color: var(--border-2); color: var(--text); }
+.conv .t { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92rem; }
+.conv .m { font-size: .78rem; color: var(--muted); display: block; }
+.conv .suppr { opacity: 0; color: var(--muted); padding: .2rem; border-radius: 6px; display: grid; }
+.conv:hover .suppr, .conv:focus-visible .suppr { opacity: 1; }
+.conv .suppr:hover { color: var(--crit); }
+.chat { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
+.chat-h { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.4rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.chat-h .ctx { display: flex; gap: .6rem; align-items: center; margin-left: auto; flex-wrap: wrap; }
+.chat-flux { flex: 1; min-height: 0; overflow-y: auto; padding: 1.5rem clamp(1rem, 3vw, 3rem); display: flex; flex-direction: column; gap: 1.4rem; }
+.accueil { margin: auto; max-width: 46rem; text-align: center; display: grid; gap: 1.2rem; justify-items: center; padding: 1rem 0; }
+.accueil .avatar { width: 3.6rem; height: 3.6rem; border-radius: 16px; }
+.accueil .avatar svg.lucide { width: 1.9rem; height: 1.9rem; }
+.accueil h2 { margin: 0; font-size: 1.5rem; letter-spacing: -.01em; }
+.accueil p { margin: 0; color: var(--text-2); }
+.sugg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; width: 100%; }
+.sugg button { text-align: left; padding: .95rem 1rem; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; color: var(--text-2); display: flex; gap: .7rem; align-items: center; font-size: .95rem; }
+.sugg button svg { color: var(--cyan); }
+.sugg button:hover { border-color: var(--cyan); color: var(--text); }
+.sugg-ligne { display: flex; gap: .5rem; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding: .8rem 1.4rem .1rem; border-top: 1px solid var(--border); }
+.sugg-ligne[hidden] { display: none; }
+.sugg-ligne button { flex: none; white-space: nowrap; border: 1px solid var(--border); background: var(--bg-2); border-radius: 999px; padding: .35rem .85rem; font-size: .85rem; cursor: pointer; color: var(--text-2); }
+.sugg-ligne button:hover:not(:disabled) { border-color: var(--cyan); color: var(--text); }
+.sugg-ligne button:disabled { opacity: .5; cursor: wait; }
+.msg-q { align-self: flex-end; max-width: min(75%, 46rem); background: linear-gradient(135deg, rgba(59,130,246,.28), rgba(34,211,238,.14)); border: 1px solid rgba(59,130,246,.4); padding: .8rem 1.1rem; border-radius: 18px 18px 4px 18px; font-size: 1rem; overflow-wrap: anywhere; }
+.msg-q small { display: block; color: var(--text-2); font-size: .78rem; margin-bottom: .15rem; }
+.msg-r { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: .9rem; max-width: min(92%, 62rem); }
+.avatar { width: 2.6rem; height: 2.6rem; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #04101f; flex: none; }
+.bulle { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px 18px 18px 18px; padding: 1.1rem 1.3rem; min-width: 0; overflow-wrap: anywhere; }
+.bulle p { margin: 0 0 .6rem; color: var(--text-2); line-height: 1.7; }
+.bulle p:last-child { margin-bottom: 0; }
+.bulle ul { margin: 0 0 .6rem; padding-left: 1.2rem; color: var(--text-2); line-height: 1.7; }
+.bulle strong { color: var(--text); }
+.diag-r { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding-bottom: .9rem; margin-bottom: .9rem; border-bottom: 1px solid var(--border); }
+.diag-r .kv { display: inline-flex; gap: .4rem; align-items: baseline; padding: .25rem .65rem; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--border); font-size: .86rem; color: var(--muted); }
+.diag-r .kv b { font-family: var(--mono); color: var(--text); font-weight: 600; }
+.sec-r { margin-top: 1rem; }
+.sec-r h4 { display: flex; align-items: center; gap: .5rem; font-size: .9rem; margin: 0 0 .55rem; color: var(--text); }
+.sec-r h4 svg { width: 1.05rem; height: 1.05rem; color: var(--cyan); }
+.chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+.chip { display: inline-flex; gap: .45rem; align-items: center; padding: .3rem .7rem; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--border); font-size: .86rem; }
+.chip b { color: var(--cyan); font-family: var(--mono); font-weight: 500; }
+.chip.fort { border-color: rgba(245,158,11,.5); }
+.chip.fort b { color: var(--warn); }
+.recos { display: grid; gap: .45rem; }
+.recos div { display: flex; gap: .55rem; align-items: flex-start; color: var(--text-2); font-size: .93rem; }
+.recos svg { width: 1.05rem; height: 1.05rem; margin-top: .2rem; color: var(--ton); }
+.cite { font-family: var(--mono); font-size: .75rem; color: var(--cyan); background: rgba(34,211,238,.12); border-radius: 5px; padding: .05rem .35rem; margin: 0 .1rem; }
+.meta { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
+.tag { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; padding: .2rem .6rem; border-radius: 7px; background: var(--bg-2); border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag svg.lucide { width: .95rem; height: .95rem; }
+.tag.llm { color: #6ee7b7; border-color: rgba(16,185,129,.4); }
+.tag.secours, .tag.extractif { color: #fcd34d; border-color: rgba(245,158,11,.4); }
+.tag.refus { color: #fda4af; border-color: rgba(244,63,94,.4); }
+.chargement { display: flex; align-items: center; gap: .8rem; color: var(--text-2); }
+.ecriture { display: inline-flex; gap: .3rem; }
+.ecriture i { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; animation: saute 1s infinite; }
+.chargement .ecriture i { background: var(--cyan); }
+.ecriture i:nth-child(2) { animation-delay: .15s; } .ecriture i:nth-child(3) { animation-delay: .3s; }
+@keyframes saute { 50% { transform: translateY(-5px); opacity: .45; } }
+.chat-saisie { padding: 1rem 1.4rem 1.2rem; }
+.saisie-boite { display: flex; gap: .7rem; align-items: flex-end; background: var(--bg-2); border: 1px solid var(--border-2); border-radius: 16px; padding: .55rem .55rem .55rem 1.1rem; transition: border-color .15s, box-shadow .15s; }
+.saisie-boite:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.12); }
+.saisie-boite textarea { flex: 1; resize: none; border: 0; outline: 0; background: transparent; min-height: 2.9rem; max-height: 10rem; padding: .7rem 0; line-height: 1.5; font-size: 1rem; }
+.envoi { width: 3rem; height: 3rem; border-radius: 12px; border: 0; cursor: pointer; display: grid; place-items: center; background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #fff; flex: none; }
+.envoi:disabled { opacity: .4; cursor: not-allowed; }
+.saisie-pied { display: flex; justify-content: space-between; gap: 1rem; font-size: .8rem; color: var(--muted); margin-top: .5rem; padding: 0 .3rem; }
+.mini-moteur { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .8rem 0 0; }
+.mini-moteur div { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .75rem; }
+.mini-moteur dt { font-size: .78rem; color: var(--muted); }
+.mini-moteur dd { margin: 0; font-family: var(--mono); font-size: 1.15rem; }
+.voile { display: none; }
+
+/* ===== Responsive ===== */
+@media (max-width: 1400px) {
+  .g-1-1-1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g-1-1-1 > :last-child { grid-column: 1 / -1; }
+  .g-1-1-1 > :last-child .fiab { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1280px) {
+  .pred-page { grid-template-columns: 1fr; }
+  .pred-page > #p-res { position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 1250px) {
+  .g-2-1, .g-3-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 1100px) {
+  .g-1-1, .g-1-1-1 { grid-template-columns: 1fr; }
+  .g-1-1-1 > :last-child .fiab { grid-template-columns: 1fr; }
+  .groupes { grid-template-columns: 1fr; }
+  .ia { grid-template-columns: 1fr; height: auto; }
+  .ia-side { display: grid; grid-template-columns: 1fr 1fr; }
+  .historique { min-height: 0; max-height: 18rem; }
+  .chat { height: 46rem; max-height: calc(100vh - 6rem); min-height: 32rem; }
+}
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; left: 0; top: 0; width: 18rem; transform: translateX(-100%); transition: transform .2s; }
+  body.menu-ouvert .sidebar { transform: none; }
+  body.menu-ouvert .voile { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 25; }
+  .menu-btn { display: inline-grid; }
+  .saut, .pill { display: none; }
+  .topbar .sous { display: none; }
+  .ia-side { grid-template-columns: 1fr; }
+  .sugg { grid-template-columns: 1fr; }
+  .diag-tete { grid-template-columns: 1fr; }
+  .comparaison { grid-template-columns: 1fr 1fr; }
+  .msg-q { max-width: 90%; }
+  .msg-r { max-width: 100%; grid-template-columns: 1fr; }
+  .msg-r > .avatar { display: none; }
+  .card-h { flex-wrap: wrap; }
+  .card-h .actions { margin-left: 0; width: 100%; justify-content: flex-start; }
+  .recherche { flex: 1; } .recherche input { width: 100%; }
+  .pred-actions { margin: 1.2rem -1.5rem -1.35rem; }
+  .pred-actions .btn.cta { width: 100%; }
+  .kpi .val { font-size: 2rem; }
+  .saisie-pied span:first-child { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+    <div class="brand">
+      <div class="brand-mark"><i data-lucide="fan"></i></div>
+      <div><strong>TurboWatch</strong><span>Assistant de maintenance prédictive</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-title">Supervision</div>
+      <a href="#/vue" data-page="vue"><i data-lucide="layout-dashboard"></i>Vue d'ensemble</a>
+      <a href="#/flotte" data-page="flotte"><i data-lucide="plane"></i>Flotte</a>
+      <a href="#/moteur" data-page="moteur"><i data-lucide="gauge"></i>Moteur</a>
+      <a href="#/alertes" data-page="alertes"><i data-lucide="bell-ring"></i>Alertes<span class="count" id="nb-alertes" hidden></span></a>
+      <div class="nav-title">Analyse</div>
+      <a href="#/anomalies" data-page="anomalies"><i data-lucide="activity"></i>Anomalies capteurs</a>
+      <a href="#/prediction" data-page="prediction"><i data-lucide="cpu"></i>Prédiction RUL</a>
+      <a href="#/assistant" data-page="assistant"><i data-lucide="bot"></i>Assistant IA</a>
+    </nav>
+    <div class="side-foot">
+      <div class="sys-row"><span>Modèle ML</span><span class="dot" id="s-modele"></span></div>
+      <div class="sys-row"><span>Index documentaire</span><span class="dot" id="s-rag"></span></div>
+      <div class="sys-row"><span id="s-llm-lib">Assistant</span><span class="dot" id="s-llm"></span></div>
+      <a class="lien" href="/docs" target="_blank" rel="noopener"><i data-lucide="book-open"></i>Documentation de l'API</a>
+      <p class="src">Données : NASA C-MAPSS FD001 (simulation).</p>
+    </div>
+  </aside>
+  <div class="voile" id="voile"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menu" aria-label="Ouvrir le menu"><i data-lucide="menu"></i></button>
+      <div>
+        <h1 id="titre">Vue d'ensemble</h1>
+        <p class="sous" id="sous-titre"></p>
+      </div>
+      <div class="droite">
+        <form class="saut" id="saut" role="search">
+          <i data-lucide="search"></i>
+          <label class="sr" for="saut-input">Aller au moteur</label>
+          <input id="saut-input" type="number" min="1" placeholder="Aller au moteur n°">
+        </form>
+        <span class="pill" id="pill-llm"><span class="dot"></span>Assistant</span>
+        <button class="icon-btn" id="rafraichir" title="Recharger les données" aria-label="Recharger les données"><i data-lucide="rotate-cw"></i></button>
+      </div>
+    </header>
+    <main class="content" id="page" tabindex="-1"></main>
+  </div>
+</div>
+
+<script>
+/* ================= Donnees et utilitaires ================= */
+const COUL = { CRITIQUE: "#f43f5e", SURVEILLANCE: "#f59e0b", NORMAL: "#10b981" };
+const PLAFOND = 125;
+const CAPTEURS = {
+  setting1: ["Réglage 1", "altitude"], setting2: ["Réglage 2", "nombre de Mach"], setting3: ["Réglage 3", "angle de la manette"],
+  s1: ["T2", "température entrée fan"], s2: ["T24", "température sortie LPC"], s3: ["T30", "température sortie HPC"],
+  s4: ["T50", "température sortie LPT"], s5: ["P2", "pression entrée fan"], s6: ["P15", "pression conduit de dérivation"],
+  s7: ["P30", "pression sortie HPC"], s8: ["Nf", "vitesse physique du fan"], s9: ["Nc", "vitesse physique du cœur"],
+  s10: ["epr", "rapport de pression moteur"], s11: ["Ps30", "pression statique sortie HPC"], s12: ["phi", "débit carburant / Ps30"],
+  s13: ["NRf", "vitesse corrigée du fan"], s14: ["NRc", "vitesse corrigée du cœur"], s15: ["BPR", "taux de dilution"],
+  s16: ["farB", "rapport carburant-air brûleur"], s17: ["htBleed", "enthalpie de prélèvement"], s18: ["Nf_dmd", "vitesse fan demandée"],
+  s19: ["PCNfR_dmd", "vitesse fan corrigée demandée"], s20: ["W31", "refroidissement HPT"], s21: ["W32", "refroidissement LPT"],
+};
+const ORDRE_CAPTEURS = Object.keys(CAPTEURS);
+const GROUPES = [
+  ["sliders-horizontal", "Réglages opérationnels", ["setting1", "setting2", "setting3"], true],
+  ["thermometer", "Températures", ["s1", "s2", "s3", "s4"]],
+  ["gauge", "Pressions", ["s5", "s6", "s7", "s10", "s11"]],
+  ["rotate-3d", "Vitesses de rotation", ["s8", "s9", "s13", "s14", "s18", "s19"]],
+  ["wind", "Débits et prélèvements", ["s12", "s15", "s16", "s17", "s20", "s21"]],
+];
+const etat = { health: null, flotte: [], details: {}, moteur: null, seuils: { critique: 50, attention: 100 }, charts: [], analyseFlotte: null, convs: [], convActive: null };
+
+const $ = (s, r = document) => r.querySelector(s);
+const nf = (x, d = 1) => (x === null || x === undefined || Number.isNaN(+x)) ? "--" : Number(x).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const statutDe = (r) => r < etat.seuils.critique ? "CRITIQUE" : r < etat.seuils.attention ? "SURVEILLANCE" : "NORMAL";
+const LIB_STATUT = { CRITIQUE: "Critique", SURVEILLANCE: "Surveillance", NORMAL: "Normal" };
+const RISQUE = { CRITIQUE: "Élevé", SURVEILLANCE: "Modéré", NORMAL: "Faible" };
+const badge = (s, lib) => `<span class="badge b-${s}">${lib || LIB_STATUT[s] || s}</span>`;
+const sante = (rul) => Math.max(0, Math.min(100, (rul / PLAFOND) * 100));
+const icones = () => window.lucide && lucide.createIcons();
+const rulbar = (v, s) => `<div class="rulbar"><div class="piste"><i style="width:${sante(v)}%;background:${COUL[s]}"></i></div><span class="v">${nf(v)}</span></div>`;
+const plusFaible = () => [...etat.flotte].sort((a, b) => a.rul_predite - b.rul_predite)[0]?.moteur;
+
+async function api(url, options) {
+  let r;
+  try { r = await fetch(url, options); } catch { const e = new Error("L'API ne répond pas. Vérifiez qu'elle est lancée (uvicorn app:app)."); e.status = 0; throw e; }
+  if (!r.ok) {
+    let detail = "";
+    try { detail = (await r.json()).detail; } catch { /* corps vide */ }
+    const e = new Error(typeof detail === "string" && detail ? detail : `Erreur ${r.status} de l'API`);
+    e.status = r.status; throw e;
+  }
+  return r.json();
+}
+async function detail(n) {
+  if (!etat.details[n]) etat.details[n] = await api(`/moteurs/${n}`);
+  return etat.details[n];
+}
+
+/* ================= Composants ================= */
+const kpi = (icone, lib, val, det, ton = "var(--blue)", unite = "", attrs = "") => `
+  <div class="card kpi" style="--ton:${ton}" ${attrs}>
+    <div class="ico"><i data-lucide="${icone}"></i></div>
+    <div class="lib">${lib}</div>
+    <div class="val">${val}${unite ? `<small>${unite}</small>` : ""}</div>
+    <div class="det">${det}</div>
+  </div>`;
+const carte = (icone, titre, aide, corps, actions = "", extra = "") => `
+  <section class="card ${extra}">
+    <div class="card-h"><i data-lucide="${icone}"></i><div class="titres"><h2>${titre}</h2>${aide ? `<p class="aide">${aide}</p>` : ""}</div>${actions ? `<div class="actions">${actions}</div>` : ""}</div>
+    ${corps}
+  </section>`;
+const vide = (icone, titre, texte) => `<div class="etat"><i data-lucide="${icone}"></i><strong>${titre}</strong>${texte ? `<span>${texte}</span>` : ""}</div>`;
+const erreurBox = (msg) => `<div class="erreur-box"><i data-lucide="triangle-alert"></i><div><strong>Une erreur est survenue.</strong><br>${esc(msg)}</div></div>`;
+const squelettes = () => `<div class="grid g-kpi">${'<div class="squelette" style="height:8.5rem"></div>'.repeat(5)}</div>
+  <div class="grid g-2-1"><div class="squelette" style="height:28rem"></div><div class="squelette" style="height:28rem"></div></div>`;
+function pagination(total, page, parPage, onPage, conteneur) {
+  const nb = Math.max(1, Math.ceil(total / parPage));
+  const debut = total ? (page - 1) * parPage + 1 : 0, fin = Math.min(total, page * parPage);
+  let html = `<span class="info">${debut} à ${fin} sur ${total}</span>`;
+  if (nb > 1) {
+    html += `<button data-p="${page - 1}" ${page <= 1 ? "disabled" : ""} aria-label="Page précédente">‹</button>`;
+    for (let p = 1; p <= nb; p++) {
+      if (nb > 7 && p !== 1 && p !== nb && Math.abs(p - page) > 1) { if (p === 2 || p === nb - 1) html += `<span style="color:var(--muted)">…</span>`; continue; }
+      html += `<button data-p="${p}" aria-current="${p === page}">${p}</button>`;
+    }
+    html += `<button data-p="${page + 1}" ${page >= nb ? "disabled" : ""} aria-label="Page suivante">›</button>`;
+  }
+  conteneur.innerHTML = html;
+  conteneur.querySelectorAll("button[data-p]").forEach((b) => b.addEventListener("click", () => onPage(+b.dataset.p)));
+}
+
+/* ================= Graphiques ================= */
+const fs = () => parseFloat(getComputedStyle(document.documentElement).fontSize);
+const degrade = (x2, y2, c1, c2) => window.echarts ? new echarts.graphic.LinearGradient(0, 0, x2, y2, [{ offset: 0, color: c1 }, { offset: 1, color: c2 }]) : c1;
+function baseGraph() {
+  const f = fs();
+  return {
+    backgroundColor: "transparent",
+    textStyle: { fontFamily: "Inter, system-ui, sans-serif", color: "#b8c4d8", fontSize: Math.round(f * .82) },
+    tooltip: { backgroundColor: "#0f172a", borderColor: "#2c3d61", padding: [10, 14], textStyle: { color: "#e8eef8", fontSize: Math.round(f * .85) }, extraCssText: "border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);" },
+    grid: { left: f * 4, right: f * 1.6, top: f * 2.2, bottom: f * 3.4 },
+  };
+}
+const axe = (nom, extra = {}) => {
+  const f = fs();
+  return {
+    name: nom, nameLocation: "middle", nameGap: f * 2.2, nameTextStyle: { color: "#8494b0", fontSize: Math.round(f * .82) },
+    axisLine: { lineStyle: { color: "#2c3d61" } }, axisTick: { show: false },
+    axisLabel: { color: "#8494b0", fontFamily: "JetBrains Mono, monospace", fontSize: Math.round(f * .78) },
+    splitLine: { lineStyle: { color: "#1a2540" } }, ...extra,
+  };
+};
+function graphe(id, option) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  if (!window.echarts) { el.innerHTML = vide("chart-no-axes-combined", "Graphique indisponible", "La bibliothèque de graphiques n'a pas pu être chargée (connexion Internet requise)."); icones(); return null; }
+  const b = baseGraph();
+  const c = echarts.init(el, null, { renderer: "canvas" });
+  c.setOption({ ...b, ...option, tooltip: { ...b.tooltip, ...(option.tooltip || {}) } });
+  etat.charts.push(c);
+  return c;
+}
+function libererGraphes() { etat.charts.forEach((c) => c.dispose()); etat.charts = []; }
+let attenteResize;
+window.addEventListener("resize", () => { clearTimeout(attenteResize); attenteResize = setTimeout(() => etat.charts.forEach((c) => c.resize()), 120); });
+
+/* ================= Regles de maintenance affichees =================
+   Regles fixes appliquees aux sorties reelles du modele (statut, RUL,
+   capteurs inhabituels). Elles sont presentees comme telles a l'ecran. */
+function recommandations(d) {
+  const r = [];
+  const s = d.statut;
+  if (s === "CRITIQUE") r.push(["siren", "var(--crit)", "Inspection prioritaire", `RUL prédite de ${nf(d.rul_predite)} cycles, sous le seuil critique de ${etat.seuils.critique}. Programmer une inspection avant le prochain vol et faire valider la décision par un expert.`]);
+  else if (s === "SURVEILLANCE") r.push(["eye", "var(--warn)", "Surveillance renforcée", `RUL prédite de ${nf(d.rul_predite)} cycles. Augmenter la fréquence de suivi et planifier une inspection dans la prochaine fenêtre de maintenance.`]);
+  else r.push(["circle-check", "var(--ok)", "Exploitation normale", `RUL prédite de ${nf(d.rul_predite)} cycles. Suivi standard, aucune action immédiate.`]);
+  const forts = (d.capteurs_anormaux || []).filter((c) => Math.abs(c.z_score) >= 2);
+  if (forts.length) r.push(["scan-search", "var(--warn)", "Capteurs à contrôler", `${forts.map((c) => `${c.capteur} (${c.symbole}, z = ${nf(c.z_score)})`).join(", ")} : valeurs éloignées de la flotte d'entraînement. Vérifier le capteur et le module associé.`]);
+  if (d.rul_reelle !== undefined && Math.abs(d.rul_predite - d.rul_reelle) >= 25) r.push(["triangle-alert", "var(--violet)", "Prédiction à confirmer", `Sur ce moteur de test, la prédiction s'écarte de ${nf(Math.abs(d.rul_predite - d.rul_reelle))} cycles de la RUL réelle. Croiser avec d'autres indicateurs avant toute décision.`]);
+  return r;
+}
+const recoItems = (d) => recommandations(d).map(([ic, ton, t, txt]) => `<div class="reco-item" style="--ton:${ton}"><i data-lucide="${ic}"></i><div><strong>${t}</strong><p>${txt}</p></div></div>`).join("");
+
+/* ================= Pages ================= */
+const PAGES = {
+  vue: { titre: "Vue d'ensemble", sous: "Santé de la flotte de test et fiabilité des prédictions", rendu: pageVue },
+  flotte: { titre: "Flotte", sous: "Les 100 moteurs de test et leur durée de vie restante", rendu: pageFlotte },
+  moteur: { titre: "Moteur", sous: "Trajectoire de dégradation, capteurs et recommandations", rendu: pageMoteur },
+  alertes: { titre: "Alertes de maintenance", sous: "Moteurs à traiter et prédictions à vérifier, par ordre de gravité", rendu: pageAlertes },
+  anomalies: { titre: "Anomalies capteurs", sous: "Capteurs les plus éloignés de la flotte d'entraînement", rendu: pageAnomalies },
+  prediction: { titre: "Prédiction RUL", sous: "Prédiction à partir de mesures de capteurs, avec diagnostic et explication documentaire", rendu: pagePrediction },
+  assistant: { titre: "Assistant IA", sous: "Questions en langage naturel sur un moteur, réponses sourcées par la documentation NASA", rendu: pageAssistant },
+};
+
+function stats() {
+  const f = etat.flotte;
+  const n = (s) => f.filter((m) => m.statut_predit === s).length;
+  const reelsCrit = f.filter((m) => m.statut_reel === "CRITIQUE");
+  return {
+    total: f.length, crit: n("CRITIQUE"), surv: n("SURVEILLANCE"), norm: n("NORMAL"),
+    mae: f.reduce((a, m) => a + Math.abs(m.rul_predite - m.rul_reelle), 0) / Math.max(f.length, 1),
+    rulMoy: f.reduce((a, m) => a + m.rul_predite, 0) / Math.max(f.length, 1),
+    reelsCrit: reelsCrit.length,
+    manquees: reelsCrit.filter((m) => m.statut_predit !== "CRITIQUE"),
+    faussesCrit: f.filter((m) => m.statut_predit === "CRITIQUE" && m.statut_reel !== "CRITIQUE").length,
+    concordants: f.filter((m) => m.statut_predit === m.statut_reel).length,
+  };
+}
+
+/* ----- Vue d'ensemble ----- */
+function pageVue(el) {
+  const s = stats();
+  const prioritaires = [...etat.flotte].sort((a, b) => a.rul_predite - b.rul_predite).slice(0, 6);
+  el.innerHTML = `
+    <div class="grid g-kpi">
+      ${kpi("plane", "Moteurs surveillés", s.total, "Jeu de test FD001", "var(--blue)")}
+      ${kpi("siren", "Moteurs critiques", s.crit, `RUL prédite inférieure à ${etat.seuils.critique} cycles`, "var(--crit)", "", 'data-lien="#/alertes" title="Ouvrir les alertes"')}
+      ${kpi("eye", "Sous surveillance", s.surv, `Entre ${etat.seuils.critique} et ${etat.seuils.attention} cycles`, "var(--warn)", "", 'data-lien="#/alertes"')}
+      ${kpi("heart-pulse", "Moteurs normaux", s.norm, `Au-delà de ${etat.seuils.attention} cycles`, "var(--ok)", "", 'data-lien="#/flotte"')}
+      ${kpi("timer", "RUL moyenne prédite", nf(s.rulMoy), "Au dernier cycle de chaque moteur", "var(--cyan)", "cycles")}
+    </div>
+    <div class="grid g-2-1">
+      ${carte("scatter-chart", "RUL prédite et RUL réelle", "Chaque point est un moteur, cliquez pour l'ouvrir. La zone rouge regroupe les alertes critiques manquées.", '<div id="g-disp" class="chart h-l"></div>', "", "remplir")}
+      ${carte("siren", "Moteurs prioritaires", "Les 6 plus faibles RUL prédites",
+        `<div class="prio">${prioritaires.map((m, i) => `<div class="prio-item" data-moteur="${m.moteur}" role="button" tabindex="0">
+          <span class="rang" style="${m.statut_predit !== "CRITIQUE" ? "background:rgba(245,158,11,.14);color:#fcd34d" : ""}">${i + 1}</span>
+          <div><strong>Moteur ${m.moteur}</strong><span class="s">${badge(m.statut_predit)}<span>réelle <span class="num" style="color:var(--violet)">${nf(m.rul_reelle)}</span></span></span></div>
+          <div class="rul" style="color:${COUL[m.statut_predit]}">${nf(m.rul_predite)}<small>cycles prédits</small></div></div>`).join("")}</div>`,
+        `<a class="btn sm" href="#/alertes">Tout voir<i data-lucide="arrow-right"></i></a>`)}
+    </div>
+    <div class="grid g-1-1-1">
+      ${carte("pie-chart", "Répartition des statuts", "Selon la RUL prédite au dernier cycle", '<div id="g-donut" class="chart"></div>')}
+      ${carte("bar-chart-3", "Distribution des RUL prédites", "Nombre de moteurs par tranche de 10 cycles", '<div id="g-histo" class="chart"></div>')}
+      ${carte("shield-check", "Fiabilité du modèle", "Comparaison avec la vérité terrain du jeu de test",
+        `<div class="fiab">
+          <div class="fiab-l" style="--ton:var(--violet)"><span class="ic"><i data-lucide="crosshair"></i></span><div><strong>Erreur absolue moyenne</strong><span>Écart moyen, en cycles</span></div><span class="v">${nf(s.mae)}</span></div>
+          <div class="fiab-l" style="--ton:var(--crit)"><span class="ic"><i data-lucide="shield-alert"></i></span><div><strong>Alertes critiques manquées</strong><span>${s.manquees.length ? `Moteur${s.manquees.length > 1 ? "s" : ""} ${s.manquees.map((m) => m.moteur).join(", ")}` : "Aucune"}</span></div><span class="v">${s.manquees.length} / ${s.reelsCrit}</span></div>
+          <div class="fiab-l" style="--ton:var(--warn)"><span class="ic"><i data-lucide="bell-plus"></i></span><div><strong>Fausses alertes critiques</strong><span>Prédits critiques, réellement non</span></div><span class="v">${s.faussesCrit}</span></div>
+          <div class="fiab-l" style="--ton:var(--ok)"><span class="ic"><i data-lucide="check-check"></i></span><div><strong>Statuts concordants</strong><span>Statut prédit égal au réel</span></div><span class="v">${nf(s.concordants / Math.max(s.total, 1) * 100, 0)} %</span></div>
+        </div>`)}
+    </div>`;
+  icones();
+  el.querySelectorAll("[data-lien]").forEach((k) => { k.classList.add("clic"); k.addEventListener("click", () => { location.hash = k.dataset.lien; }); });
+  el.querySelectorAll(".prio-item").forEach((p) => {
+    p.addEventListener("click", () => allerMoteur(+p.dataset.moteur));
+    p.addEventListener("keydown", (e) => { if (e.key === "Enter") allerMoteur(+p.dataset.moteur); });
+  });
+  const f = fs();
+  const c1 = graphe("g-disp", {
+    grid: { left: f * 4.2, right: f * 1.6, top: f * 1.6, bottom: f * 3.6 },
+    tooltip: { trigger: "item", formatter: (p) => p.seriesName === "Moteurs" ? `<b>Moteur ${p.value[2]}</b><br>RUL réelle : ${nf(p.value[0])}<br>RUL prédite : ${nf(p.value[1])}<br>Statut prédit : ${LIB_STATUT[p.value[3]]}` : "" },
+    xAxis: axe("RUL réelle (cycles)", { min: 0, max: 130 }), yAxis: axe("RUL prédite (cycles)", { min: 0, max: 130, nameGap: f * 2.8 }),
+    series: [
+      { name: "Prédiction parfaite", type: "line", data: [[0, 0], [130, 130]], symbol: "none", lineStyle: { color: "#3b4a6b", type: "dashed" }, silent: true,
+        markArea: { silent: true, itemStyle: { color: "rgba(244,63,94,.08)" }, label: { show: true, color: "#fda4af", fontSize: Math.round(f * .8), position: "insideTopLeft" },
+          data: [[{ name: "Alertes manquées", coord: [0, etat.seuils.critique] }, { coord: [etat.seuils.critique, 130] }]] } },
+      { name: "Moteurs", type: "scatter", symbolSize: f * .85,
+        data: etat.flotte.map((m) => ({ value: [m.rul_reelle, m.rul_predite, m.moteur, m.statut_predit], itemStyle: { color: COUL[m.statut_predit], borderColor: "#070b16", borderWidth: 1.5 } })),
+        emphasis: { scale: 1.6 } },
+    ],
+  });
+  c1 && c1.on("click", (p) => p.seriesName === "Moteurs" && allerMoteur(p.value[2]));
+  graphe("g-donut", {
+    tooltip: { trigger: "item", formatter: "{b} : {c} moteurs ({d} %)" },
+    legend: { bottom: 0, itemGap: f * 1.2, textStyle: { color: "#b8c4d8", fontSize: Math.round(f * .85) }, icon: "circle" },
+    series: [{ type: "pie", radius: ["56%", "78%"], center: ["50%", "44%"], padAngle: 2, itemStyle: { borderRadius: 6, borderColor: "#0f172a", borderWidth: 2 },
+      label: { show: true, position: "center", formatter: () => `{v|${s.total}}\n{l|moteurs}`, rich: { v: { fontSize: Math.round(f * 2), fontWeight: 600, color: "#e8eef8", fontFamily: "JetBrains Mono" }, l: { fontSize: Math.round(f * .85), color: "#8494b0", padding: [4, 0, 0, 0] } } },
+      emphasis: { label: { show: true } },
+      data: [{ name: "Critique", value: s.crit, itemStyle: { color: COUL.CRITIQUE } }, { name: "Surveillance", value: s.surv, itemStyle: { color: COUL.SURVEILLANCE } }, { name: "Normal", value: s.norm, itemStyle: { color: COUL.NORMAL } }] }],
+  });
+  const bins = Array.from({ length: 13 }, (_, i) => i * 10);
+  graphe("g-histo", {
+    grid: { left: f * 3.2, right: f * 1, top: f * 1.2, bottom: f * 3.6 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p) => `${p[0].name} à ${+p[0].name + 9} cycles : <b>${p[0].value}</b> moteur(s)` },
+    xAxis: axe("RUL prédite (cycles)", { type: "category", data: bins.map((b) => `${b}`), axisLabel: { color: "#8494b0", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .74) } }),
+    yAxis: axe("", { minInterval: 1 }),
+    series: [{ type: "bar", barWidth: "70%", data: bins.map((b) => ({ value: etat.flotte.filter((m) => m.rul_predite >= b && m.rul_predite < b + 10).length, itemStyle: { borderRadius: [5, 5, 0, 0], color: COUL[statutDe(b)] } })) }],
+  });
+}
+
+/* ----- Flotte ----- */
+function pageFlotte(el) {
+  const p = etat.prefsFlotte || (etat.prefsFlotte = { filtre: "tous", tri: "rul_predite", sens: 1, q: "", page: 1, parPage: 20 });
+  const cpt = { tous: etat.flotte.length, CRITIQUE: 0, SURVEILLANCE: 0, NORMAL: 0, ecarts: 0 };
+  etat.flotte.forEach((m) => { cpt[m.statut_predit] += 1; if (m.statut_predit !== m.statut_reel) cpt.ecarts += 1; });
+  el.innerHTML = `
+    <section class="card">
+      <div class="card-h"><i data-lucide="plane"></i><div class="titres"><h2>Flotte de test</h2><p class="aide">Cliquez sur une ligne pour ouvrir le moteur, sur un en-tête pour trier.</p></div>
+        <div class="actions">
+          <div class="recherche"><i data-lucide="search"></i><input id="f-q" inputmode="numeric" placeholder="Numéro de moteur" value="${esc(p.q)}" aria-label="Rechercher un moteur"></div>
+          <select class="champ" id="f-pp" aria-label="Lignes par page">${[10, 20, 50, 100].map((v) => `<option value="${v}" ${v === p.parPage ? "selected" : ""}>${v} par page</option>`).join("")}</select>
+        </div>
+      </div>
+      <div class="barre-outils" style="margin-bottom:1rem">
+        <div class="seg" role="group" aria-label="Filtrer par statut">
+          ${[["tous", "Tous"], ["CRITIQUE", "Critiques"], ["SURVEILLANCE", "Surveillance"], ["NORMAL", "Normaux"], ["ecarts", "Écarts de statut"]].map(([v, l]) => `<button data-f="${v}" aria-pressed="${p.filtre === v}">${l}<span class="c">${cpt[v]}</span></button>`).join("")}
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th data-tri="moteur">Moteur<span class="fleche"></span></th><th>Statut prédit</th>
+          <th data-tri="rul_predite">RUL prédite (repères à ${etat.seuils.critique} et ${etat.seuils.attention})<span class="fleche"></span></th><th class="r" data-tri="rul_reelle">RUL réelle<span class="fleche"></span></th>
+          <th class="r" data-tri="ecart">Écart<span class="fleche"></span></th><th>Statut réel</th><th class="r" data-tri="sante">Santé<span class="fleche"></span></th><th class="r" data-tri="nb_cycles">Cycles<span class="fleche"></span></th><th></th>
+        </tr></thead><tbody id="f-corps"></tbody></table></div>
+      <div class="pagination" id="f-pag"></div>
+      <p class="note">Écart = RUL prédite moins RUL réelle (positif : le modèle est trop optimiste). Santé = RUL prédite rapportée au plafond de ${PLAFOND} cycles.</p>
+    </section>`;
+  const rendre = () => {
+    let l = etat.flotte.map((m) => ({ ...m, ecart: m.rul_predite - m.rul_reelle, sante: sante(m.rul_predite) }));
+    if (p.filtre === "ecarts") l = l.filter((m) => m.statut_predit !== m.statut_reel);
+    else if (p.filtre !== "tous") l = l.filter((m) => m.statut_predit === p.filtre);
+    if (p.q.trim()) l = l.filter((m) => String(m.moteur).startsWith(p.q.trim()));
+    l.sort((a, b) => (a[p.tri] - b[p.tri]) * p.sens);
+    const nbPages = Math.max(1, Math.ceil(l.length / p.parPage));
+    p.page = Math.min(Math.max(1, p.page), nbPages);
+    const vue = l.slice((p.page - 1) * p.parPage, p.page * p.parPage);
+    $("#f-corps").innerHTML = vue.map((m) => `<tr class="clic" data-moteur="${m.moteur}" tabindex="0">
+      <td><strong>Moteur ${m.moteur}</strong></td><td>${badge(m.statut_predit)}</td>
+      <td>${rulbar(m.rul_predite, m.statut_predit)}</td>
+      <td class="r num" style="color:var(--violet)">${nf(m.rul_reelle)}</td>
+      <td class="r num ${m.ecart > 0 ? "ecart-plus" : "ecart-moins"}">${m.ecart > 0 ? "+" : ""}${nf(m.ecart)}</td>
+      <td>${badge(m.statut_reel)}</td><td class="r num">${nf(m.sante, 0)} %</td><td class="r num">${m.nb_cycles}</td>
+      <td class="r"><i data-lucide="chevron-right" class="chev"></i></td></tr>`).join("")
+      || `<tr><td colspan="9">${vide("search-x", "Aucun moteur", "Aucun moteur ne correspond à ces filtres.")}</td></tr>`;
+    el.querySelectorAll("th[data-tri] .fleche").forEach((s) => { s.textContent = ""; });
+    const th = el.querySelector(`th[data-tri="${p.tri}"] .fleche`);
+    if (th) th.textContent = p.sens > 0 ? "▲" : "▼";
+    pagination(l.length, p.page, p.parPage, (n) => { p.page = n; rendre(); }, $("#f-pag"));
+    icones();
+  };
+  el.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    p.filtre = b.dataset.f; p.page = 1; el.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x === b)); rendre();
+  }));
+  el.querySelectorAll("th[data-tri]").forEach((th) => th.addEventListener("click", () => { p.sens = p.tri === th.dataset.tri ? -p.sens : 1; p.tri = th.dataset.tri; rendre(); }));
+  $("#f-q").addEventListener("input", (e) => { p.q = e.target.value; p.page = 1; rendre(); });
+  $("#f-pp").addEventListener("change", (e) => { p.parPage = +e.target.value; p.page = 1; rendre(); });
+  $("#f-corps").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-moteur]"); if (tr) allerMoteur(+tr.dataset.moteur); });
+  $("#f-corps").addEventListener("keydown", (e) => { const tr = e.target.closest("tr[data-moteur]"); if (tr && e.key === "Enter") allerMoteur(+tr.dataset.moteur); });
+  rendre();
+}
+
+/* ----- Moteur ----- */
+async function pageMoteur(el, n) {
+  n = n || etat.moteur || plusFaible();
+  if (!n) { el.innerHTML = vide("plane", "Aucun moteur", "La flotte n'est pas chargée."); icones(); return; }
+  etat.moteur = n;
+  el.innerHTML = `<div class="squelette" style="height:4rem"></div>${squelettes()}`;
+  let d;
+  try { d = await detail(n); } catch (e) { el.innerHTML = e.status === 404 ? vide("search-x", `Moteur ${n} introuvable`, `Les moteurs de test sont numérotés de 1 à ${etat.flotte.length}.`) : erreurBox(e.message); icones(); return; }
+  if (location.hash.split("/")[1] !== "moteur") return;
+  const err = d.rul_predite - d.rul_reelle;
+  const ids = etat.flotte.map((m) => m.moteur);
+  const i = ids.indexOf(n);
+  const f = fs();
+  el.innerHTML = `
+    <div class="entete-moteur">
+      <h2>Moteur ${n}</h2>${badge(d.statut)}
+      <span class="note" style="margin:0">Dernier cycle enregistré : <span class="num">${d.cycles[d.cycles.length - 1]}</span></span>
+      <div class="nav-m">
+        <button class="icon-btn" id="m-prec" aria-label="Moteur précédent" ${i <= 0 ? "disabled" : ""}><i data-lucide="chevron-left"></i></button>
+        <select class="champ" id="m-choix" aria-label="Choisir un moteur">${ids.map((x) => `<option value="${x}" ${x === n ? "selected" : ""}>Moteur ${x}</option>`).join("")}</select>
+        <button class="icon-btn" id="m-suiv" aria-label="Moteur suivant" ${i >= ids.length - 1 ? "disabled" : ""}><i data-lucide="chevron-right"></i></button>
+        <button class="btn primary" id="m-ia"><i data-lucide="bot"></i>Demander à l'assistant</button>
+      </div>
+    </div>
+    <div class="grid g-kpi">
+      ${kpi("timer", "RUL prédite", nf(d.rul_predite), "Prédiction du modèle au dernier cycle", COUL[d.statut], "cycles")}
+      ${kpi("target", "RUL réelle", nf(d.rul_reelle), "Vérité terrain du jeu de test", "var(--violet)", "cycles")}
+      ${kpi("crosshair", "Erreur de prédiction", `${err > 0 ? "+" : ""}${nf(err)}`, err > 0 ? "Le modèle est trop optimiste" : "Le modèle est prudent", Math.abs(err) >= 25 ? "var(--warn)" : "var(--blue)", "cycles")}
+      ${kpi("heart-pulse", "Indice de santé", nf(sante(d.rul_predite), 0), `RUL prédite rapportée à ${PLAFOND} cycles`, COUL[d.statut], "%")}
+      ${kpi("repeat", "Cycles enregistrés", d.cycles.length, `Statut réel : ${LIB_STATUT[statutDe(d.rul_reelle)].toLowerCase()}`, "var(--cyan)")}
+    </div>
+    <div class="grid g-2-1">
+      ${carte("trending-down", "Trajectoire de la durée de vie restante", "Prédiction à chaque cycle et RUL réelle. Molette ou curseur du bas pour zoomer.", '<div id="g-traj" class="chart h-l"></div>')}
+      ${carte("gauge", "Jauge de RUL", "Aiguille : prédiction. Zones : seuils de statut.", '<div id="g-jauge" class="chart h-l"></div>')}
+    </div>
+    <div class="grid g-1-1">
+      ${carte("activity", "Capteurs inhabituels", "Écart au comportement moyen de la flotte d'entraînement (z-score)",
+        `<div class="liste-ano">${d.capteurs_anormaux.map((c) => {
+          const z = Math.max(-4, Math.min(4, c.z_score)), w = Math.abs(z) / 8 * 100, g = z >= 0 ? 50 : 50 - w;
+          const ton = Math.abs(c.z_score) >= 2 ? "var(--warn)" : "var(--cyan)";
+          return `<div class="ano"><div class="nom">${c.capteur} ${esc(c.symbole)}<span>${esc(CAPTEURS[c.capteur]?.[1] || c.description)}</span></div>
+            <div class="z" style="color:${ton}">z ${c.z_score > 0 ? "+" : ""}${nf(c.z_score, 2)}</div>
+            <div class="piste"><i style="left:${g}%;width:${w}%;background:${ton}"></i></div>
+            <div class="det">Valeur <span class="num">${nf(c.valeur, 2)}</span>, moyenne d'entraînement <span class="num">${nf(c.moyenne_entrainement, 2)}</span>, ${esc(c.sens)}</div></div>`;
+        }).join("") || vide("activity", "Aucune donnée", "")}</div>
+        <p class="note">Un z-score élevé signale un capteur inhabituel, pas une cause prouvée de la prédiction.</p>`)}
+      ${carte("lightbulb", "Recommandations", "Règles de maintenance appliquées au statut et aux capteurs",
+        `<div class="reco">${recoItems(d)}</div><p class="note">Aide à la décision : la décision finale revient à un expert de maintenance.</p>`)}
+    </div>
+    ${carte("radio", "Mesures du dernier cycle", "24 valeurs envoyées au modèle (3 réglages opérationnels et 21 capteurs). En orange : capteurs signalés.",
+      `<div class="capteurs-grid">${ORDRE_CAPTEURS.map((k) => {
+        const signale = d.capteurs_anormaux.some((c) => c.capteur === k && Math.abs(c.z_score) >= 2);
+        return `<div class="capteur ${signale ? "signale" : ""}"><div class="t"><b>${k}</b><span>${CAPTEURS[k][0]}</span></div><div class="v">${nf(d.capteurs[k], 4)}</div><div class="d" title="${CAPTEURS[k][1]}">${CAPTEURS[k][1]}</div></div>`;
+      }).join("")}</div>`, `<a class="btn" href="#/prediction"><i data-lucide="cpu"></i>Rejouer la prédiction</a>`)}`;
+  icones();
+  $("#m-choix").addEventListener("change", (e) => allerMoteur(+e.target.value));
+  $("#m-prec").addEventListener("click", () => allerMoteur(ids[i - 1]));
+  $("#m-suiv").addEventListener("click", () => allerMoteur(ids[i + 1]));
+  $("#m-ia").addEventListener("click", () => ouvrirAssistant(n));
+
+  graphe("g-traj", {
+    tooltip: { trigger: "axis", formatter: (p) => `<b>Cycle ${p[0].axisValue}</b><br>${p.map((x) => `${x.marker}${x.seriesName} : <b>${nf(x.value[1])}</b>`).join("<br>")}` },
+    legend: { top: 0, right: 0, textStyle: { color: "#b8c4d8", fontSize: Math.round(f * .85) }, data: ["RUL prédite", "RUL réelle"] },
+    grid: { left: f * 4, right: f * 1.6, top: f * 2.6, bottom: f * 5.2 },
+    xAxis: axe("Cycle", { type: "value", min: d.cycles[0], max: d.cycles[d.cycles.length - 1] }),
+    yAxis: axe("RUL (cycles)", { min: 0, max: 135, nameGap: f * 2.6 }),
+    dataZoom: [{ type: "inside" }, { type: "slider", height: f * 1.3, bottom: f * .5, borderColor: "#1f2c47", fillerColor: "rgba(34,211,238,.12)", handleStyle: { color: "#22d3ee" }, textStyle: { color: "#8494b0" }, dataBackground: { lineStyle: { color: "#2c3d61" }, areaStyle: { color: "#131d33" } } }],
+    series: [
+      { name: "RUL prédite", type: "line", showSymbol: false, data: d.cycles.map((c, k) => [c, d.rul_predite_par_cycle[k]]),
+        lineStyle: { color: "#22d3ee", width: 2 }, itemStyle: { color: "#22d3ee" },
+        areaStyle: { color: degrade(0, 1, "rgba(34,211,238,.22)", "rgba(34,211,238,0)") },
+        markArea: { silent: true, data: [[{ yAxis: 0, itemStyle: { color: "rgba(244,63,94,.07)" } }, { yAxis: etat.seuils.critique }], [{ yAxis: etat.seuils.critique, itemStyle: { color: "rgba(245,158,11,.05)" } }, { yAxis: etat.seuils.attention }]] },
+        markLine: { silent: true, symbol: "none", label: { color: "#8494b0", fontSize: Math.round(f * .74), formatter: "{b}", position: "insideEndTop" }, data: [{ name: "Seuil critique", yAxis: etat.seuils.critique, lineStyle: { color: "#f43f5e", type: "dashed", opacity: .6 } }, { name: "Seuil surveillance", yAxis: etat.seuils.attention, lineStyle: { color: "#f59e0b", type: "dashed", opacity: .6 } }] } },
+      { name: "RUL réelle", type: "line", showSymbol: false, data: d.cycles.map((c, k) => [c, d.rul_reelle_par_cycle[k]]), lineStyle: { color: "#a78bfa", width: 2.2, type: "dashed" }, itemStyle: { color: "#a78bfa" } },
+    ],
+  });
+  jauge("g-jauge", d.rul_predite, `cycles prédits (réel : ${nf(d.rul_reelle)})`);
+}
+
+function jauge(id, valeur, titre) {
+  const f = fs();
+  return graphe(id, {
+    series: [{
+      type: "gauge", min: 0, max: PLAFOND, startAngle: 215, endAngle: -35, radius: "92%", center: ["50%", "56%"], splitNumber: 5,
+      axisLine: { lineStyle: { width: f * .95, color: [[etat.seuils.critique / PLAFOND, COUL.CRITIQUE], [etat.seuils.attention / PLAFOND, COUL.SURVEILLANCE], [1, COUL.NORMAL]] } },
+      pointer: { length: "62%", width: f * .35, itemStyle: { color: "#e8eef8" } }, anchor: { show: true, size: f * .8, itemStyle: { color: "#e8eef8", borderColor: "#0f172a", borderWidth: 3 } },
+      axisTick: { distance: -f * .95, length: 5, lineStyle: { color: "#0f172a", width: 1 } }, splitLine: { distance: -f * .95, length: f * .95, lineStyle: { color: "#0f172a", width: 2 } },
+      axisLabel: { distance: f * 1.5, color: "#8494b0", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .78) },
+      title: { offsetCenter: [0, "64%"], color: "#8494b0", fontSize: Math.round(f * .85) },
+      detail: { offsetCenter: [0, "38%"], valueAnimation: true, formatter: (v) => nf(v), color: "#e8eef8", fontFamily: "JetBrains Mono", fontSize: Math.round(f * 2.2), fontWeight: 600 },
+      data: [{ value: Math.min(valeur, PLAFOND), name: titre }],
+    }],
+  });
+}
+
+/* ----- Alertes ----- */
+const TYPES_AL = {
+  CRITIQUE: { lib: "Critique", ton: "var(--crit)", ic: "siren", action: "Inspection prioritaire avant le prochain vol, décision validée par un expert." },
+  SURVEILLANCE: { lib: "Surveillance", ton: "var(--warn)", ic: "eye", action: "Renforcer le suivi et planifier une inspection dans la prochaine fenêtre de maintenance." },
+  MANQUEE: { lib: "Alerte manquée", ton: "var(--violet)", ic: "shield-alert", action: "Analyser ce cas d'échec du modèle : la RUL réelle est critique mais n'a pas été détectée." },
+  VERIFIER: { lib: "Statut à vérifier", ton: "var(--blue)", ic: "git-compare", action: "Croiser la prédiction avec d'autres indicateurs avant de décider." },
+};
+function construireAlertes() {
+  const a = [];
+  etat.flotte.forEach((m) => {
+    if (m.statut_predit === "CRITIQUE") a.push({ type: "CRITIQUE", m, prio: 1, cle: m.rul_predite });
+    else if (m.statut_predit === "SURVEILLANCE") a.push({ type: "SURVEILLANCE", m, prio: 3, cle: m.rul_predite });
+    if (m.statut_reel === "CRITIQUE" && m.statut_predit !== "CRITIQUE") a.push({ type: "MANQUEE", m, prio: 0, cle: m.rul_reelle });
+    else if (m.statut_reel !== m.statut_predit) a.push({ type: "VERIFIER", m, prio: 4, cle: -Math.abs(m.rul_predite - m.rul_reelle) });
+  });
+  return a.sort((x, y) => x.prio - y.prio || x.cle - y.cle);
+}
+function pageAlertes(el) {
+  const toutes = construireAlertes();
+  const p = etat.prefsAlertes || (etat.prefsAlertes = { f: "toutes", q: "", page: 1, parPage: 15 });
+  const n = (t) => toutes.filter((a) => a.type === t).length;
+  el.innerHTML = `
+    <div class="grid g-kpi" id="a-kpi">
+      ${kpi("siren", "Alertes critiques", n("CRITIQUE"), "Inspection prioritaire", "var(--crit)", "", 'data-f="CRITIQUE" title="Filtrer"')}
+      ${kpi("shield-alert", "Alertes manquées", n("MANQUEE"), "Critiques réels non détectés", "var(--violet)", "", 'data-f="MANQUEE" title="Filtrer"')}
+      ${kpi("eye", "Sous surveillance", n("SURVEILLANCE"), "Inspection à planifier", "var(--warn)", "", 'data-f="SURVEILLANCE" title="Filtrer"')}
+      ${kpi("git-compare", "Statuts à vérifier", n("VERIFIER"), "Statut prédit différent du réel", "var(--blue)", "", 'data-f="VERIFIER" title="Filtrer"')}
+    </div>
+    <section class="card">
+      <div class="card-h"><i data-lucide="bell-ring"></i><div class="titres"><h2>File d'alertes</h2><p class="aide">Triée par gravité. Les alertes manquées et les statuts à vérifier comparent la prédiction à la vérité terrain du jeu de test.</p></div>
+        <div class="actions"><div class="recherche"><i data-lucide="search"></i><input id="a-q" inputmode="numeric" placeholder="Filtrer par moteur" value="${esc(p.q)}" aria-label="Filtrer par moteur"></div></div></div>
+      <div class="barre-outils" style="margin-bottom:1rem"><div class="seg" role="group" aria-label="Filtrer par criticité">
+        ${[["toutes", "Toutes", toutes.length], ["CRITIQUE", "Critiques", n("CRITIQUE")], ["MANQUEE", "Manquées", n("MANQUEE")], ["SURVEILLANCE", "Surveillance", n("SURVEILLANCE")], ["VERIFIER", "À vérifier", n("VERIFIER")]].map(([v, l, c]) => `<button data-f="${v}" aria-pressed="${p.f === v}">${l}<span class="c">${c}</span></button>`).join("")}
+      </div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Gravité</th><th>Moteur</th><th class="r">RUL prédite</th><th class="r">RUL réelle</th><th>Action recommandée</th><th class="r">Ouvrir</th></tr></thead>
+        <tbody id="a-corps"></tbody></table></div>
+      <div class="pagination" id="a-pag"></div>
+    </section>`;
+  const rendre = () => {
+    let l = p.f === "toutes" ? toutes : toutes.filter((a) => a.type === p.f);
+    if (p.q.trim()) l = l.filter((a) => String(a.m.moteur).startsWith(p.q.trim()));
+    const nb = Math.max(1, Math.ceil(l.length / p.parPage)); p.page = Math.min(Math.max(1, p.page), nb);
+    $("#a-corps").innerHTML = l.slice((p.page - 1) * p.parPage, p.page * p.parPage).map((a) => {
+      const t = TYPES_AL[a.type];
+      return `<tr class="al-row" style="--ton:${t.ton}">
+        <td><span class="type-al"><span class="ic"><i data-lucide="${t.ic}"></i></span>${badge(a.type, t.lib)}</span></td>
+        <td><strong>Moteur ${a.m.moteur}</strong></td>
+        <td class="r num" style="color:${COUL[a.m.statut_predit]}">${nf(a.m.rul_predite)}</td>
+        <td class="r num" style="color:var(--violet)">${nf(a.m.rul_reelle)}</td>
+        <td class="wrap"><div class="action-al" style="--ton:${t.ton}"><i data-lucide="corner-down-right"></i><span>${t.action}</span></div></td>
+        <td class="r"><div class="barre-outils" style="justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-voir="${a.m.moteur}"><i data-lucide="gauge"></i>Moteur</button><button class="btn sm" data-ia="${a.m.moteur}"><i data-lucide="bot"></i>Assistant</button></div></td></tr>`;
+    }).join("") || `<tr><td colspan="6">${vide("bell-off", "Aucune alerte", "Aucune alerte ne correspond à ces filtres.")}</td></tr>`;
+    pagination(l.length, p.page, p.parPage, (x) => { p.page = x; rendre(); }, $("#a-pag"));
+    el.querySelectorAll("#a-kpi .kpi").forEach((k) => k.classList.toggle("actif", k.dataset.f === p.f));
+    el.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.f === p.f));
+    icones();
+  };
+  const choisir = (f) => { p.f = f; p.page = 1; rendre(); };
+  el.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => choisir(b.dataset.f)));
+  el.querySelectorAll("#a-kpi .kpi").forEach((k) => { k.classList.add("clic"); k.addEventListener("click", () => choisir(p.f === k.dataset.f ? "toutes" : k.dataset.f)); });
+  $("#a-q").addEventListener("input", (e) => { p.q = e.target.value; p.page = 1; rendre(); });
+  $("#a-corps").addEventListener("click", (e) => {
+    const v = e.target.closest("[data-voir]"), ia = e.target.closest("[data-ia]");
+    if (v) allerMoteur(+v.dataset.voir);
+    if (ia) ouvrirAssistant(+ia.dataset.ia);
+  });
+  rendre();
+}
+
+/* ----- Anomalies ----- */
+async function analyserFlotte(maj) {
+  if (etat.analyseFlotte) return etat.analyseFlotte;
+  const ids = etat.flotte.map((m) => m.moteur);
+  let fait = 0;
+  const file = [...ids];
+  const travail = async () => {
+    while (file.length) {
+      const n = file.shift();
+      try { await detail(n); } catch { /* moteur ignore */ }
+      fait += 1; maj(fait / ids.length);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, travail));
+  etat.analyseFlotte = ids.filter((n) => etat.details[n]).map((n) => etat.details[n]);
+  return etat.analyseFlotte;
+}
+async function pageAnomalies(el) {
+  el.innerHTML = carte("activity", "Analyse des capteurs de la flotte", `Lecture des ${etat.flotte.length} moteurs de test`,
+    `<div class="progression"><i id="an-prog" style="width:0%"></i></div><p class="note" id="an-txt">Analyse en cours...</p>`);
+  icones();
+  let liste;
+  try {
+    liste = await analyserFlotte((x) => { const b = $("#an-prog"); if (b) { b.style.width = `${Math.round(x * 100)}%`; $("#an-txt").textContent = `Analyse en cours : ${Math.round(x * 100)} %`; } });
+  } catch (e) { el.innerHTML = erreurBox(e.message); icones(); return; }
+  if (location.hash.split("/")[1] !== "anomalies") return;
+  if (!liste.length) { el.innerHTML = vide("activity", "Aucun moteur analysé", "Les détails des moteurs n'ont pas pu être chargés."); icones(); return; }
+  const freq = {};
+  liste.forEach((d) => d.capteurs_anormaux.forEach((c) => { freq[c.capteur] = (freq[c.capteur] || 0) + 1; }));
+  const tri = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+  const lignes = liste.map((d) => ({ d, max: Math.max(...d.capteurs_anormaux.map((c) => Math.abs(c.z_score)), 0) })).sort((a, b) => b.max - a.max);
+  const forts = lignes.filter((l) => l.max >= 2).length;
+  const f = fs();
+  el.innerHTML = `
+    <div class="grid g-kpi">
+      ${kpi("radar", "Moteurs analysés", liste.length, "Dernier cycle de chaque moteur", "var(--blue)")}
+      ${kpi("zap", "Anomalies fortes", forts, "Au moins un capteur avec |z| ≥ 2", "var(--warn)")}
+      ${kpi("thermometer", "Capteur le plus signalé", tri[0] ? `${tri[0][0]}` : "--", tri[0] ? `${CAPTEURS[tri[0][0]][0]}, dans le top 3 de ${tri[0][1]} moteurs` : "", "var(--cyan)")}
+      ${kpi("sigma", "z-score maximal", nf(lignes[0].max, 2), `Moteur ${lignes[0].d.moteur}`, "var(--crit)")}
+    </div>
+    <div class="grid g-3-2">
+      ${carte("list", "Moteurs classés par anomalie", "Les 3 capteurs les plus éloignés de la flotte d'entraînement, pour chaque moteur",
+        `<div class="table-wrap" style="max-height:clamp(26rem, 58vh, 42rem)"><table><thead><tr><th>Moteur</th><th>Statut</th><th>Capteurs signalés</th><th class="r">|z| max</th><th></th></tr></thead><tbody>
+        ${lignes.map(({ d, max }) => `<tr class="clic" data-moteur="${d.moteur}"><td><strong>Moteur ${d.moteur}</strong></td><td>${badge(d.statut)}</td>
+          <td><div class="chips">${d.capteurs_anormaux.map((c) => `<span class="chip ${Math.abs(c.z_score) >= 2 ? "fort" : ""}"><b>${c.capteur}</b><span class="num">${c.z_score > 0 ? "+" : ""}${nf(c.z_score)}</span></span>`).join("")}</div></td>
+          <td class="r num" style="color:${max >= 2 ? "var(--warn)" : "var(--text)"}">${nf(max, 2)}</td><td class="r"><i data-lucide="chevron-right" class="chev"></i></td></tr>`).join("")}
+        </tbody></table></div>`)}
+      ${carte("bar-chart-horizontal", "Capteurs les plus fréquents", "Nombre de moteurs où le capteur figure dans le top 3", '<div id="g-freq" class="chart" style="height:clamp(26rem, 58vh, 42rem)"></div>')}
+    </div>`;
+  icones();
+  el.querySelectorAll("tr[data-moteur]").forEach((tr) => tr.addEventListener("click", () => allerMoteur(+tr.dataset.moteur)));
+  const top = tri.slice(0, 14).reverse();
+  graphe("g-freq", {
+    grid: { left: f * 6.5, right: f * 2.4, top: f * .6, bottom: f * 2 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (q) => `<b>${q[0].name}</b> (${CAPTEURS[q[0].name.split(" ")[0]]?.[1] || ""})<br>${q[0].value} moteur(s)` },
+    xAxis: axe("", { minInterval: 1 }),
+    yAxis: axe("", { type: "category", data: top.map(([k]) => `${k} ${CAPTEURS[k][0]}`), axisLabel: { color: "#b8c4d8", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .8) } }),
+    series: [{ type: "bar", barWidth: "60%", data: top.map(([, v]) => v), itemStyle: { borderRadius: [0, 6, 6, 0], color: degrade(1, 0, "#3b82f6", "#22d3ee") }, label: { show: true, position: "right", color: "#b8c4d8", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .8) } }],
+  });
+}
+
+/* ----- Prediction ----- */
+async function pagePrediction(el) {
+  const ids = etat.flotte.map((m) => m.moteur);
+  const n = etat.moteur || plusFaible() || ids[0];
+  el.innerHTML = `<div class="pred-page">
+    <section class="card">
+      <div class="card-h"><i data-lucide="sliders-horizontal"></i><div class="titres"><h2>Mesures d'entrée</h2><p class="aide">Pré-remplies avec le dernier cycle d'un moteur de test. Chaque valeur est modifiable (bordure violette quand elle a changé).</p></div>
+        <div class="actions"><label class="sr" for="p-src">Moteur source</label><select class="champ" id="p-src">${ids.map((x) => `<option value="${x}" ${x === n ? "selected" : ""}>Moteur ${x}</option>`).join("")}</select>
+        <button class="btn" type="button" id="p-reset"><i data-lucide="undo-2"></i>Réinitialiser</button></div></div>
+      <form id="p-form" novalidate>
+        <div class="groupes">${GROUPES.map(([ic, titre, cles, large]) => `<fieldset class="groupe ${large ? "large" : ""}"><h3><i data-lucide="${ic}"></i>${titre}<span class="c">${cles.length} variables</span></h3>
+          <div class="champs">${cles.map((k) => `<label><span class="l"><b>${k}</b><span>${CAPTEURS[k][0]}</span></span><input name="${k}" type="number" step="any" required aria-label="${k} ${CAPTEURS[k][1]}"><span class="d" title="${CAPTEURS[k][1]}">${CAPTEURS[k][1]}</span></label>`).join("")}</div></fieldset>`).join("")}</div>
+        <div class="pred-actions"><button class="btn cta" type="submit" id="p-go"><i data-lucide="play"></i>Lancer la prédiction</button><span class="note">Envoi des 24 mesures à l'endpoint <span class="num">POST /predict</span></span></div>
+      </form>
+    </section>
+    <div id="p-res">${carte("stethoscope", "Diagnostic", "", vide("cpu", "Aucune prédiction pour le moment", `Lancez une prédiction pour obtenir la RUL, le statut, le niveau de risque, des recommandations et, si le moteur est critique, l'explication tirée de la documentation NASA.`))}</div>
+  </div>`;
+  icones();
+  let source = null;
+  const champ = (k) => $(`#p-form input[name="${k}"]`);
+  const remplir = async (m) => {
+    try {
+      source = await detail(m);
+      ORDRE_CAPTEURS.forEach((k) => { champ(k).value = source.capteurs[k]; champ(k).classList.remove("modifie"); });
+    } catch (e) { $("#p-res").innerHTML = erreurBox(e.message); icones(); }
+  };
+  await remplir(n);
+  if (!$("#p-src")) return;
+  $("#p-src").addEventListener("change", (e) => { etat.moteur = +e.target.value; remplir(+e.target.value); });
+  $("#p-reset").addEventListener("click", () => remplir(+$("#p-src").value));
+  $("#p-form").addEventListener("input", (e) => {
+    if (e.target.name && source) e.target.classList.toggle("modifie", parseFloat(e.target.value) !== source.capteurs[e.target.name]);
+  });
+  $("#p-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const corps = {};
+    const invalides = ORDRE_CAPTEURS.filter((k) => { const v = parseFloat(champ(k).value); corps[k] = v; return Number.isNaN(v); });
+    if (invalides.length) { $("#p-res").innerHTML = erreurBox(`Valeur manquante ou invalide : ${invalides.join(", ")}.`); icones(); champ(invalides[0]).focus(); return; }
+    const src = source;
+    const modifiees = ORDRE_CAPTEURS.filter((k) => src && corps[k] !== src.capteurs[k]);
+    const go = $("#p-go"); go.disabled = true; go.innerHTML = '<span class="ecriture"><i></i><i></i><i></i></span>Prédiction en cours';
+    $("#p-res").innerHTML = '<div class="squelette" style="height:34rem"></div>';
+    if (window.innerWidth <= 1280) $("#p-res").scrollIntoView({ behavior: "smooth", block: "start" });
+    try {
+      const r = await api("/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+      if (!$("#p-res")) return;
+      const memes = src && !modifiees.length;
+      const recos = recoItems({ statut: r.statut, rul_predite: r.rul_predite, capteurs_anormaux: memes ? src.capteurs_anormaux : [], rul_reelle: memes ? src.rul_reelle : undefined });
+      const refs = r.references?.length ? `<ul class="refs">${r.references.map((x) => `<li><i data-lucide="file-text"></i>${esc(x)}</li>`).join("")}</ul>` : "";
+      const pos = Math.min(r.rul_predite, PLAFOND) / PLAFOND * 100;
+      $("#p-res").innerHTML = carte("stethoscope", "Diagnostic du moteur", memes ? `Mesures du moteur ${src.moteur}, dernier cycle` : `Mesures modifiées (${modifiees.length} valeur${modifiees.length > 1 ? "s" : ""} changée${modifiees.length > 1 ? "s" : ""})`, `
+        <div class="diag-tete">
+          <div class="diag-rul"><div class="gros" style="color:${COUL[r.statut]}">${nf(r.rul_predite)}</div><div class="u">cycles restants prédits</div>
+            <div class="diag-chips">${badge(r.statut)}<span class="tag"><i data-lucide="flame"></i>Criticité : risque ${RISQUE[r.statut].toLowerCase()}</span><span class="tag"><i data-lucide="heart-pulse"></i>Santé ${nf(sante(r.rul_predite), 0)} %</span></div></div>
+          <div id="g-pjauge" class="chart h-s" style="height:clamp(13rem, 24vh, 17rem)"></div>
+        </div>
+        <div class="echelle" aria-hidden="true"><div class="barre"><span class="curseur" style="left:${pos}%"></span></div>
+          <div class="graduations"><span style="left:0;transform:none">0</span><span style="left:${etat.seuils.critique / PLAFOND * 100}%">${etat.seuils.critique}</span><span style="left:${etat.seuils.attention / PLAFOND * 100}%">${etat.seuils.attention}</span><span style="right:0;transform:none">${PLAFOND}</span></div></div>
+        ${memes ? `<dl class="comparaison"><div><dt>RUL prédite</dt><dd>${nf(r.rul_predite)}</dd></div><div><dt>RUL réelle (test)</dt><dd style="color:var(--violet)">${nf(src.rul_reelle)}</dd></div><div><dt>Écart</dt><dd>${r.rul_predite - src.rul_reelle > 0 ? "+" : ""}${nf(r.rul_predite - src.rul_reelle)}</dd></div></dl>` : ""}
+        <div class="diag-section"><h3><i data-lucide="lightbulb"></i>Recommandations</h3><div class="reco">${recos}</div></div>
+        <div class="diag-section"><h3><i data-lucide="book-open-text"></i>Explication physique (documentation NASA)</h3>
+          ${r.explication_physique_rag ? `<p class="texte-rag">${esc(r.explication_physique_rag)}</p>${refs}` : `<p class="texte-rag" style="color:var(--muted)">L'explication documentaire n'est produite que pour un statut critique (RUL inférieure à ${etat.seuils.critique} cycles). Pour toute autre question, utilisez l'assistant IA.</p>`}
+          <div style="margin-top:1rem"><button class="btn" id="p-ia"><i data-lucide="bot"></i>Approfondir avec l'assistant</button></div></div>`);
+      icones();
+      jauge("g-pjauge", r.rul_predite, "cycles prédits");
+      $("#p-ia").addEventListener("click", () => ouvrirAssistant(src?.moteur || etat.moteur));
+    } catch (err) {
+      if ($("#p-res")) { $("#p-res").innerHTML = erreurBox(err.status === 422 ? "Une ou plusieurs valeurs sont invalides." : err.message); icones(); }
+    } finally {
+      const b = $("#p-go"); if (b) { b.disabled = false; b.innerHTML = '<i data-lucide="play"></i>Lancer la prédiction'; icones(); }
+    }
+  });
+}
+
+/* ----- Assistant ----- */
+const QUESTIONS = [["stethoscope", "Pourquoi ce moteur est-il dans cet état ?"], ["activity", "Quels capteurs montrent la dégradation ?"], ["wrench", "Que recommandes-tu comme action de maintenance ?"], ["alarm-clock", "L'intervention est-elle urgente ?"]];
+const MODE = { llm: ["Réponse LLM", "llm", "sparkles"], extractif: ["Réponse extractive", "extractif", "file-text"], extractif_secours: ["Secours extractif", "secours", "life-buoy"], refus: ["Question refusée", "refus", "ban"] };
+const CLE_CONV = "turbowatch-conversations";
+function chargerConvs() {
+  try { etat.convs = JSON.parse(localStorage.getItem(CLE_CONV) || "[]").filter((c) => c && Array.isArray(c.messages)); } catch { etat.convs = []; }
+}
+function sauverConvs() {
+  try { localStorage.setItem(CLE_CONV, JSON.stringify(etat.convs.slice(0, 30).map((c) => ({ ...c, messages: c.messages.filter((m) => !m.attente) })))); } catch { /* stockage indisponible */ }
+}
+const convActive = () => etat.convs.find((c) => c.id === etat.convActive);
+const enCours = () => etat.convs.some((c) => c.messages.some((m) => m.attente));
+function nouvelleConv(moteur) {
+  const vide0 = etat.convs.find((c) => c.moteur === moteur && !c.messages.length);
+  if (vide0) { etat.convActive = vide0.id; return vide0; }
+  const c = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), moteur, titre: "Nouvelle conversation", date: new Date().toISOString(), messages: [] };
+  etat.convs.unshift(c); etat.convActive = c.id; sauverConvs(); return c;
+}
+function ouvrirAssistant(moteur) {
+  etat.moteur = moteur;
+  const c = convActive();
+  if (!c || c.moteur !== moteur || c.messages.length) nouvelleConv(moteur);
+  location.hash = "#/assistant";
+}
+function formater(texte) {
+  const lignes = esc(texte).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  let html = "", liste = false;
+  for (const l of lignes) {
+    const item = /^[-*•]\s+|^\d+[.)]\s+/.test(l);
+    if (item && !liste) { html += "<ul>"; liste = true; }
+    if (!item && liste) { html += "</ul>"; liste = false; }
+    const c = l.replace(/^[-*•]\s+|^\d+[.)]\s+/, "").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '<span class="cite">$1</span>');
+    html += item ? `<li>${c}</li>` : `<p>${c}</p>`;
+  }
+  return html + (liste ? "</ul>" : "");
+}
+function rendreMessage(m) {
+  const q = `<div class="msg-q"><small>Moteur ${m.moteur}</small>${esc(m.q)}</div>`;
+  const av = `<div class="avatar"><i data-lucide="bot"></i></div>`;
+  if (m.attente) return `${q}<div class="msg-r">${av}<div class="bulle"><div class="chargement"><span class="ecriture"><i></i><i></i><i></i></span><span>L'assistant analyse le moteur et la documentation NASA<span class="num" data-chrono="${m.debut}"></span></span></div></div></div>`;
+  if (m.erreur) return `${q}<div class="msg-r">${av}<div class="bulle">${erreurBox(m.erreur)}</div></div>`;
+  const d = m.r, [lib, cls, ic] = MODE[d.mode] || [d.mode, "", "info"];
+  const meta = `<div class="meta"><span class="tag ${cls}"><i data-lucide="${ic}"></i>${lib}</span><span class="tag"><i data-lucide="timer"></i>${nf((d.latence_ms || 0) / 1000)} s</span>
+    <span class="tag"><i data-lucide="coins"></i>${(d.tokens_entree || 0) + (d.tokens_sortie || 0)} tokens, ${Number(d.cout_estime_usd || 0).toFixed(5)} $</span>
+    ${(d.garde_fous || []).map((g) => `<span class="tag"><i data-lucide="shield-check"></i>Garde-fou : ${esc(g)}</span>`).join("")}</div>`;
+  if (d.refus) return `${q}<div class="msg-r">${av}<div class="bulle"><p>${esc(d.reponse)}</p>${meta}</div></div>`;
+  const texte = d.reponse.replace(/^RUL predite par le modele\s*:[^()]*\(statut [A-Z]+\)\.\s*/i, "");
+  return `${q}<div class="msg-r">${av}<div class="bulle">
+    <div class="diag-r">${badge(d.statut)}<span class="kv">RUL prédite <b>${nf(d.rul_predite)}</b> cycles</span><span class="kv">Niveau de risque <b style="color:${COUL[d.statut]}">${RISQUE[d.statut]}</b></span></div>
+    <div class="sec-r" style="margin-top:0"><h4><i data-lucide="message-square-text"></i>Diagnostic de l'assistant</h4>${formater(texte) || '<p>Aucun texte retourné.</p>'}</div>
+    ${d.capteurs_anormaux?.length ? `<div class="sec-r"><h4><i data-lucide="activity"></i>Capteurs concernés</h4><div class="chips">${d.capteurs_anormaux.map((c) => `<span class="chip ${Math.abs(c.z_score) >= 2 ? "fort" : ""}"><b>${c.capteur}</b>${esc(c.symbole)}<span class="num">z ${c.z_score > 0 ? "+" : ""}${nf(c.z_score)}</span></span>`).join("")}</div></div>` : ""}
+    <div class="sec-r"><h4><i data-lucide="lightbulb"></i>Recommandations (règles de maintenance)</h4><div class="recos">${recommandations({ statut: d.statut, rul_predite: d.rul_predite, capteurs_anormaux: d.capteurs_anormaux }).map(([icr, ton, t, txt]) => `<div style="--ton:${ton}"><i data-lucide="${icr}"></i><span><strong>${t}.</strong> ${txt}</span></div>`).join("")}</div></div>
+    ${d.references?.length ? `<div class="sec-r"><h4><i data-lucide="library"></i>Sources documentaires</h4><ul class="refs" style="margin:0">${d.references.map((x) => `<li><i data-lucide="file-text"></i>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${meta}</div></div>`;
+}
+let chrono;
+function majEnvoi() {
+  const t = $("#chat-q"), env = $("#chat-envoi");
+  if (!t || !env) return;
+  env.disabled = t.value.trim().length < 3 || enCours();
+  document.querySelectorAll("#sugg-ligne button, .sugg button").forEach((b) => { b.disabled = enCours(); });
+}
+function rendreChat() {
+  const f = $("#chat-flux");
+  if (!f) return;
+  const c = convActive();
+  const m = etat.flotte.find((x) => x.moteur === etat.moteur);
+  f.innerHTML = c && c.messages.length ? c.messages.map(rendreMessage).join("") : `
+    <div class="accueil"><div class="avatar"><i data-lucide="bot"></i></div>
+      <h2>Comment puis-je vous aider sur le moteur ${etat.moteur} ?</h2>
+      <p>${m ? `Statut prédit ${LIB_STATUT[m.statut_predit].toLowerCase()}, RUL prédite de ${nf(m.rul_predite)} cycles. ` : ""}Les réponses combinent la prédiction du modèle, les capteurs inhabituels et la documentation NASA.</p>
+      <div class="sugg">${QUESTIONS.map(([ic, q]) => `<button data-q="${esc(q)}"><i data-lucide="${ic}"></i>${q}</button>`).join("")}</div></div>`;
+  $("#sugg-ligne").hidden = !(c && c.messages.length);
+  f.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => demander(b.dataset.q)));
+  icones();
+  f.scrollTop = f.scrollHeight;
+  clearInterval(chrono);
+  const tic = () => f.querySelectorAll("[data-chrono]").forEach((s) => { s.textContent = ` (${Math.floor((Date.now() - +s.dataset.chrono) / 1000)} s)`; });
+  if (f.querySelector("[data-chrono]")) { tic(); chrono = setInterval(tic, 500); }
+  rendreHistorique();
+  majEnvoi();
+}
+function rendreHistorique() {
+  const h = $("#hist");
+  if (!h) return;
+  const visibles = etat.convs.filter((c) => c.messages.length || c.id === etat.convActive);
+  h.innerHTML = visibles.length ? visibles.map((c) => `<div class="conv" role="button" tabindex="0" data-conv="${c.id}" aria-current="${c.id === etat.convActive}">
+      <i data-lucide="message-square"></i><span style="min-width:0"><span class="t">${esc(c.titre)}</span><span class="m">Moteur ${c.moteur}, ${c.messages.filter((x) => x.r || x.erreur).length} réponse(s)</span></span>
+      <button class="suppr" style="background:none;border:0;cursor:pointer" data-suppr="${c.id}" title="Supprimer" aria-label="Supprimer la conversation"><i data-lucide="trash-2"></i></button></div>`).join("")
+    : '<p class="note" style="margin:0">Aucune conversation.</p>';
+  icones();
+}
+async function demander(question) {
+  const q = (question || "").trim();
+  if (q.length < 3 || !etat.moteur || enCours()) return;
+  let c = convActive();
+  if (!c || c.moteur !== etat.moteur) c = nouvelleConv(etat.moteur);
+  if (!c.messages.length) c.titre = q.length > 48 ? `${q.slice(0, 46)}…` : q;
+  const msg = { q, moteur: etat.moteur, attente: true, debut: Date.now() };
+  c.messages.push(msg); c.date = new Date().toISOString(); rendreChat();
+  try {
+    const d = await detail(msg.moteur);
+    msg.r = await api("/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, capteurs: d.capteurs }) });
+  } catch (e) { msg.erreur = e.status === 422 ? "La question doit contenir entre 3 et 500 caractères." : e.message; }
+  msg.attente = false; delete msg.debut; sauverConvs(); rendreChat();
+}
+function pageAssistant(el) {
+  const ids = etat.flotte.map((m) => m.moteur);
+  etat.moteurChoisi = !!etat.moteur;
+  if (!etat.moteur) etat.moteur = plusFaible();
+  let c = convActive();
+  if (!c) c = (!etat.moteurChoisi && etat.convs[0]) || nouvelleConv(etat.moteur);
+  etat.convActive = c.id;
+  etat.moteur = c.moteur;
+  const m = etat.flotte.find((x) => x.moteur === etat.moteur);
+  const ancien = $("#chat-q")?.value || "";
+  el.innerHTML = `<div class="ia">
+    <aside class="ia-side">
+      <section class="card">
+        <div class="card-h" style="margin-bottom:.8rem"><i data-lucide="plane"></i><div class="titres"><h2>Moteur analysé</h2></div></div>
+        <label class="sr" for="ia-m">Moteur analysé</label>
+        <select class="champ" id="ia-m" style="width:100%">${ids.map((x) => `<option value="${x}" ${x === etat.moteur ? "selected" : ""}>Moteur ${x}</option>`).join("")}</select>
+        ${m ? `<dl class="mini-moteur"><div><dt>RUL prédite</dt><dd style="color:${COUL[m.statut_predit]}">${nf(m.rul_predite)}</dd></div><div><dt>Statut</dt><dd style="font-family:var(--font);padding-top:.2rem">${badge(m.statut_predit)}</dd></div><div><dt>RUL réelle</dt><dd style="color:var(--violet)">${nf(m.rul_reelle)}</dd></div><div><dt>Cycles</dt><dd>${m.nb_cycles}</dd></div></dl>` : ""}
+        <button class="btn" style="width:100%;margin-top:.8rem" id="ia-voir"><i data-lucide="gauge"></i>Voir la fiche du moteur</button>
+      </section>
+      <section class="card historique">
+        <div class="card-h" style="margin-bottom:.8rem"><i data-lucide="history"></i><div class="titres"><h2>Historique</h2></div><div class="actions"><button class="btn sm" id="ia-nouv"><i data-lucide="plus"></i>Nouvelle</button></div></div>
+        <div class="liste" id="hist"></div>
+      </section>
+    </aside>
+    <section class="card chat" aria-label="Conversation">
+      <div class="chat-h"><div class="avatar"><i data-lucide="bot"></i></div><div><strong style="font-size:1.08rem">Assistant de maintenance, moteur ${etat.moteur}</strong><div class="note" style="margin:0" id="ia-mode"></div></div>
+        <div class="ctx">${m ? badge(m.statut_predit) : ""}<button class="btn sm" id="ia-vider"><i data-lucide="eraser"></i>Effacer</button></div></div>
+      <div class="chat-flux" id="chat-flux" aria-live="polite"></div>
+      <div class="sugg-ligne" id="sugg-ligne" hidden>${QUESTIONS.map(([, q]) => `<button data-q2="${esc(q)}">${q}</button>`).join("")}</div>
+      <form class="chat-saisie" id="chat-form">
+        <div class="saisie-boite"><label class="sr" for="chat-q">Votre question</label>
+          <textarea id="chat-q" rows="1" maxlength="500" placeholder="Posez une question sur le moteur ${etat.moteur}..."></textarea>
+          <button class="envoi" id="chat-envoi" type="submit" aria-label="Envoyer" disabled><i data-lucide="arrow-up"></i></button></div>
+        <div class="saisie-pied"><span>Entrée pour envoyer, Maj + Entrée pour aller à la ligne</span><span class="num" id="chat-cpt">0 / 500</span></div>
+      </form>
+    </section></div>`;
+  $("#ia-mode").textContent = etat.health?.assistant_mode === "llm" ? "LLM actif (Groq), réponses sourcées par la documentation NASA" : "Mode extractif : phrases de la documentation NASA, sans LLM";
+  icones();
+  const t = $("#chat-q");
+  t.value = ancien;
+  const ajuster = () => { t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, 160)}px`; $("#chat-cpt").textContent = `${t.value.length} / 500`; majEnvoi(); };
+  rendreChat(); ajuster();
+  t.addEventListener("input", ajuster);
+  t.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chat-form").requestSubmit(); } });
+  $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); if (t.value.trim().length >= 3 && !enCours()) { demander(t.value); t.value = ""; ajuster(); } });
+  el.querySelectorAll("[data-q2]").forEach((b) => b.addEventListener("click", () => demander(b.dataset.q2)));
+  $("#ia-m").addEventListener("change", (e) => { etat.moteur = +e.target.value; nouvelleConv(etat.moteur); pageAssistant(el); });
+  $("#ia-voir").addEventListener("click", () => allerMoteur(etat.moteur));
+  $("#ia-nouv").addEventListener("click", () => { nouvelleConv(etat.moteur); pageAssistant(el); });
+  $("#ia-vider").addEventListener("click", () => { const cc = convActive(); if (cc && !enCours()) { cc.messages = []; cc.titre = "Nouvelle conversation"; sauverConvs(); rendreChat(); } });
+  const hist = $("#hist");
+  const ouvrir = (id) => { etat.convActive = id; etat.moteur = convActive().moteur; pageAssistant(el); };
+  hist.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-suppr]");
+    if (s) {
+      e.stopPropagation();
+      const cible = etat.convs.find((x) => x.id === s.dataset.suppr);
+      if (cible?.messages.some((x) => x.attente)) return;
+      etat.convs = etat.convs.filter((x) => x.id !== s.dataset.suppr);
+      if (etat.convActive === s.dataset.suppr) etat.convActive = null;
+      sauverConvs(); pageAssistant(el); return;
+    }
+    const b = e.target.closest("[data-conv]");
+    if (b) ouvrir(b.dataset.conv);
+  });
+  hist.addEventListener("keydown", (e) => { const b = e.target.closest("[data-conv]"); if (b && e.key === "Enter" && e.target === b) ouvrir(b.dataset.conv); });
+  if (window.innerWidth > 900) t.focus({ preventScroll: true });
+}
+
+/* ================= Routage et demarrage ================= */
+function allerMoteur(n) { if (n) location.hash = `#/moteur/${n}`; }
+async function router() {
+  const [, nom = "vue", arg] = location.hash.split("/");
+  const page = PAGES[nom] ? nom : "vue";
+  document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  $("#titre").textContent = PAGES[page].titre;
+  $("#sous-titre").textContent = PAGES[page].sous;
+  document.title = `${PAGES[page].titre} | TurboWatch`;
+  document.body.classList.remove("menu-ouvert");
+  clearInterval(chrono);
+  libererGraphes();
+  const el = $("#page");
+  el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+  window.scrollTo(0, 0);
+  if (!etat.flotte.length) {
+    el.innerHTML = etat.erreurFlotte ? `${erreurBox(etat.erreurFlotte)}<div><button class="btn" id="reessayer"><i data-lucide="rotate-cw"></i>Réessayer</button></div>` : squelettes();
+    icones();
+    $("#reessayer")?.addEventListener("click", charger);
+    return;
+  }
+  await PAGES[page].rendu(el, arg ? +arg : undefined);
+}
+async function charger() {
+  etat.erreurFlotte = null; etat.details = {}; etat.analyseFlotte = null; etat.flotte = [];
+  router();
+  try {
+    const h = await api("/health");
+    etat.health = h;
+    if (h.seuils) etat.seuils = h.seuils;
+    $("#s-modele").className = `dot ${h.model_loaded ? "ok" : "crit"}`;
+    $("#s-rag").className = `dot ${h.rag_index_ready ? "ok" : "warn"}`;
+    $("#s-llm").className = `dot ${h.assistant_mode === "llm" ? "ok" : "warn"}`;
+    $("#s-llm-lib").textContent = h.assistant_mode === "llm" ? "Assistant LLM" : "Assistant extractif";
+    $("#pill-llm").innerHTML = `<span class="dot ${h.assistant_mode === "llm" ? "ok" : "warn"}"></span>${h.assistant_mode === "llm" ? "LLM actif" : "Mode extractif"}`;
+  } catch { $("#s-modele").className = "dot crit"; }
+  try {
+    etat.flotte = await api("/moteurs");
+    const nb = etat.flotte.filter((m) => m.statut_predit === "CRITIQUE").length;
+    const c = $("#nb-alertes"); c.textContent = nb; c.hidden = !nb;
+  } catch (e) {
+    etat.flotte = [];
+    etat.erreurFlotte = e.status === 503 ? "Le modèle ou les données FD001 sont absents. Lancez dvc repro puis rechargez la page." : e.message;
+  }
+  router();
+}
+window.addEventListener("hashchange", router);
+$("#rafraichir").addEventListener("click", charger);
+$("#menu").addEventListener("click", () => document.body.classList.toggle("menu-ouvert"));
+$("#voile").addEventListener("click", () => document.body.classList.remove("menu-ouvert"));
+$("#saut").addEventListener("submit", (e) => { e.preventDefault(); const v = +$("#saut-input").value; if (v) { allerMoteur(v); $("#saut-input").value = ""; } });
+chargerConvs();
+icones();
+charger();
+</script>
+</body>
+</html>
