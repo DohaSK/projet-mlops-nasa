@@ -809,7 +809,7 @@ function pageVue(el) {
           data: [{ name: `Seuil critique (${sc})`, yAxis: sc, label: { position: "insideEndTop" }, lineStyle: { color: "#f43f5e", type: "dashed", width: 1.4, opacity: .75 } }, { name: `Seuil surveillance (${sa})`, yAxis: sa, label: { position: "insideStartTop" }, lineStyle: { color: "#f59e0b", type: "dashed", width: 1.4, opacity: .75 } }] } },
       { name: "Prédiction parfaite", type: "line", data: [[0, 0], [130, 130]], symbol: "none", z: 2, lineStyle: { color: "#64748b", type: "dashed", width: 1.6 }, silent: true,
         markArea: { silent: true, itemStyle: { color: "rgba(244,63,94,.13)", borderColor: "rgba(253,164,175,.55)", borderWidth: 1, borderType: "dashed" },
-          label: { show: true, color: "#fda4af", fontSize: Math.round(f * .85), fontWeight: 600, position: "insideBottom", distance: 8 },
+          label: { show: false, color: "#fda4af", fontSize: Math.round(f * .85), fontWeight: 600, position: "insideBottom", distance: 8 },
           data: [[{ name: "Alertes manquées", coord: [0, sc] }, { coord: [sc, 130] }]] } },
       pointSerie("NORMAL", "Normal"), pointSerie("SURVEILLANCE", "Surveillance"), pointSerie("CRITIQUE", "Critique"),
     ],
