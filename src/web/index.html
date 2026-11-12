@@ -982,14 +982,14 @@ async function pageMoteur(el, n) {
         lineStyle: { color: "#22d3ee", width: 2 }, itemStyle: { color: "#22d3ee" },
         areaStyle: { color: degrade(0, 1, "rgba(34,211,238,.22)", "rgba(34,211,238,0)") },
         markArea: { silent: true, data: [[{ yAxis: 0, itemStyle: { color: "rgba(244,63,94,.07)" } }, { yAxis: etat.seuils.critique }], [{ yAxis: etat.seuils.critique, itemStyle: { color: "rgba(245,158,11,.05)" } }, { yAxis: etat.seuils.attention }]] },
-        markLine: { silent: true, symbol: "none", label: { color: "#8494b0", fontSize: Math.round(f * .74), formatter: "{b}", position: "insideEndTop" }, data: [{ name: "Seuil critique", yAxis: etat.seuils.critique, lineStyle: { color: "#f43f5e", type: "dashed", opacity: .6 } }, { name: "Seuil surveillance", yAxis: etat.seuils.attention, lineStyle: { color: "#f59e0b", type: "dashed", opacity: .6 } }] } },
+        markLine: { silent: true, symbol: "none", label: { color: "#aab7cf", fontSize: Math.round(f * .74), formatter: "{b}", position: "insideEndTop", backgroundColor: "rgba(15,23,42,.85)", padding: [2, 6], borderRadius: 4 }, data: [{ name: "Seuil critique", yAxis: etat.seuils.critique, lineStyle: { color: "#f43f5e", type: "dashed", opacity: .6 } }, { name: "Seuil surveillance", yAxis: etat.seuils.attention, lineStyle: { color: "#f59e0b", type: "dashed", opacity: .6 } }] } },
       { name: "RUL réelle", type: "line", showSymbol: false, data: d.cycles.map((c, k) => [c, d.rul_reelle_par_cycle[k]]), lineStyle: { color: "#a78bfa", width: 2.2, type: "dashed" }, itemStyle: { color: "#a78bfa" } },
     ],
   });
   jauge("g-jauge", d.rul_predite, `cycles prédits (réel : ${nf(d.rul_reelle)})`);
 }
 
-function jauge(id, valeur, titre) {
+function jauge(id, valeur, titre, petite = false) {
   const f = fs();
   return graphe(id, {
     series: [{
@@ -997,9 +997,9 @@ function jauge(id, valeur, titre) {
       axisLine: { lineStyle: { width: f * .95, color: [[etat.seuils.critique / PLAFOND, COUL.CRITIQUE], [etat.seuils.attention / PLAFOND, COUL.SURVEILLANCE], [1, COUL.NORMAL]] } },
       pointer: { length: "62%", width: f * .35, itemStyle: { color: "#e8eef8" } }, anchor: { show: true, size: f * .8, itemStyle: { color: "#e8eef8", borderColor: "#0f172a", borderWidth: 3 } },
       axisTick: { distance: -f * .95, length: 5, lineStyle: { color: "#0f172a", width: 1 } }, splitLine: { distance: -f * .95, length: f * .95, lineStyle: { color: "#0f172a", width: 2 } },
-      axisLabel: { distance: f * 1.5, color: "#8494b0", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .78) },
-      title: { offsetCenter: [0, "64%"], color: "#8494b0", fontSize: Math.round(f * .85) },
-      detail: { offsetCenter: [0, "38%"], valueAnimation: true, formatter: (v) => nf(v), color: "#e8eef8", fontFamily: "JetBrains Mono", fontSize: Math.round(f * 2.2), fontWeight: 600 },
+      axisLabel: { show: !petite, distance: f * 1.5, color: "#8494b0", fontFamily: "JetBrains Mono", fontSize: Math.round(f * .78) },
+      title: { offsetCenter: [0, petite ? "78%" : "64%"], color: "#8494b0", fontSize: Math.round(f * .85) },
+      detail: { offsetCenter: [0, petite ? "48%" : "38%"], valueAnimation: true, formatter: (v) => nf(v), color: "#e8eef8", fontFamily: "JetBrains Mono", fontSize: Math.round(f * (petite ? 1.6 : 2.2)), fontWeight: 600 },
       data: [{ value: Math.min(valeur, PLAFOND), name: titre }],
     }],
   });
@@ -1200,7 +1200,7 @@ async function pagePrediction(el) {
           ${r.explication_physique_rag ? `<p class="texte-rag">${esc(r.explication_physique_rag)}</p>${refs}` : `<p class="texte-rag" style="color:var(--muted)">L'explication documentaire n'est produite que pour un statut critique (RUL inférieure à ${etat.seuils.critique} cycles). Pour toute autre question, utilisez l'assistant IA.</p>`}
           <div style="margin-top:1rem"><button class="btn" id="p-ia"><i data-lucide="bot"></i>Approfondir avec l'assistant</button></div></div>`);
       icones();
-      jauge("g-pjauge", r.rul_predite, "cycles prédits");
+      jauge("g-pjauge", r.rul_predite, "cycles prédits", true);
       $("#p-ia").addEventListener("click", () => ouvrirAssistant(src?.moteur || etat.moteur));
     } catch (err) {
       if ($("#p-res")) { $("#p-res").innerHTML = erreurBox(err.status === 422 ? "Une ou plusieurs valeurs sont invalides." : err.message); icones(); }
